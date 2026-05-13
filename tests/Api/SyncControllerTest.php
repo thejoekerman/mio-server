@@ -25,6 +25,7 @@ final class SyncControllerTest extends ApiTestCase
                     'playTimeHours' => 14.5,
                     'review' => '',
                     'platform' => 'PS5',
+                    'ownershipType' => 'physical',
                     'tags' => ['JRPG', 'Action'],
                     'finishedAt' => null,
                     'pausedAt' => '2026-04-23',
@@ -55,6 +56,7 @@ final class SyncControllerTest extends ApiTestCase
         self::assertSame('Final Fantasy VII Remake', $payload['games'][0]['title']);
         self::assertSame('Boss fight was dope!', $payload['logs'][0]['content']);
         self::assertSame(14.5, $payload['games'][0]['playTimeHours']);
+        self::assertSame('physical', $payload['games'][0]['ownershipType']);
         self::assertSame('2026-04-23', $payload['games'][0]['pausedAt']);
         self::assertSame('2026-05-07', $payload['games'][0]['nudgeAt']);
     }
@@ -261,6 +263,53 @@ final class SyncControllerTest extends ApiTestCase
         self::assertSame(['Square Enix'], $payload['games'][0]['igdbPublishers']);
         self::assertSame(['Action', 'Fantasy'], $payload['games'][0]['igdbThemes']);
         self::assertSame(['Single player'], $payload['games'][0]['igdbGameModes']);
+    }
+
+    #[TestDox('The sync endpoint preserves ownership type when an older client omits the field')]
+    public function testSyncEndpointPreservesOwnershipTypeWhenAnOlderClientOmitsTheField(): void
+    {
+        $auth = $this->createUserWithSyncToken();
+
+        $existingGame = (new Game())
+            ->setId('game-1')
+            ->setUser($auth['user'])
+            ->setTitle('Metaphor: ReFantazio')
+            ->setStatus('playing')
+            ->setReview('')
+            ->setPlatform('PS5')
+            ->setOwnershipType('both')
+            ->setTags(['JRPG'])
+            ->setCreatedAt(new DateTimeImmutable('2026-04-23T09:00:00Z'))
+            ->setUpdatedAt(new DateTimeImmutable('2026-04-23T10:00:00Z'));
+
+        $this->entityManager->persist($existingGame);
+        $this->entityManager->flush();
+
+        $this->postJson('/api/sync', [
+            'games' => [
+                [
+                    'id' => 'game-1',
+                    'title' => 'Metaphor: ReFantazio',
+                    'status' => 'playing',
+                    'rating' => null,
+                    'playTimeHours' => null,
+                    'review' => '',
+                    'platform' => 'PS5',
+                    'tags' => ['JRPG'],
+                    'finishedAt' => null,
+                    'createdAt' => '2026-04-23T09:00:00Z',
+                    'updatedAt' => '2026-04-23T11:00:00Z',
+                    'deletedAt' => null,
+                ],
+            ],
+            'logs' => [],
+        ], $auth['plainToken']);
+
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+
+        $payload = json_decode($this->client->getResponse()->getContent() ?: '', true, 512, JSON_THROW_ON_ERROR);
+
+        self::assertSame('both', $payload['games'][0]['ownershipType']);
     }
 
     #[TestDox('The sync endpoint stores incoming IGDB metadata for a new game')]

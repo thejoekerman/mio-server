@@ -76,6 +76,14 @@ GitHub Actions runs the Docker-based test path:
 - run PHPUnit
 - lint the Symfony container
 
+Tagged releases also publish Docker images to GitHub Container Registry.
+Pushing a tag such as `v0.1.0` publishes:
+
+```text
+ghcr.io/<owner>/mio-server-backend:v0.1.0
+ghcr.io/<owner>/mio-server-web:v0.1.0
+```
+
 ## License
 
 MIT.

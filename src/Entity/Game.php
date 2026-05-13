@@ -37,6 +37,9 @@ class Game
     #[ORM\Column(length: 120)]
     private string $platform = '';
 
+    #[ORM\Column(length: 16, nullable: true)]
+    private ?string $ownershipType = null;
+
     #[ORM\Column(type: Types::JSON)]
     private array $tags = [];
 
@@ -199,6 +202,21 @@ class Game
     public function setPlatform(string $platform): static
     {
         $this->platform = $platform;
+
+        return $this;
+    }
+
+    public function getOwnershipType(): ?string
+    {
+        return $this->ownershipType;
+    }
+
+    public function setOwnershipType(?string $ownershipType): static
+    {
+        $this->ownershipType = match ($ownershipType) {
+            'digital', 'physical', 'both' => $ownershipType,
+            default => null,
+        };
 
         return $this;
     }

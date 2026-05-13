@@ -124,6 +124,10 @@ class SyncService
             ->setUpdatedAt($incomingUpdatedAt)
             ->setDeletedAt($this->dateTimeOrNull($data['deletedAt'] ?? null));
 
+        if (array_key_exists('ownershipType', $data)) {
+            $game->setOwnershipType($this->ownershipTypeOrNull($data['ownershipType']));
+        }
+
         if (array_key_exists('pausedAt', $data)) {
             $game->setPausedAt($this->dateOnlyOrNull($data['pausedAt'], 'pausedAt'));
         }
@@ -321,6 +325,7 @@ class SyncService
             'playTimeHours' => null !== $game->getPlayTimeHours() ? (float) $game->getPlayTimeHours() : null,
             'review' => $game->getReview(),
             'platform' => $game->getPlatform(),
+            'ownershipType' => $game->getOwnershipType(),
             'tags' => $game->getTags(),
             'igdbId' => $game->getIgdbId(),
             'igdbUrl' => $game->getIgdbUrl(),
@@ -459,6 +464,14 @@ class SyncService
         }
 
         return number_format((float) $value, 1, '.', '');
+    }
+
+    private function ownershipTypeOrNull(mixed $value): ?string
+    {
+        return match ($value) {
+            'digital', 'physical', 'both' => $value,
+            default => null,
+        };
     }
 
     /**

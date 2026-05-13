@@ -84,6 +84,46 @@ ghcr.io/<owner>/mio-server-backend:v0.1.0
 ghcr.io/<owner>/mio-server-web:v0.1.0
 ```
 
+## Production Deployment
+
+The published production images are intended to run as a small stack:
+
+- `mio-server-backend`: PHP-FPM Symfony app
+- `mio-server-web`: nginx serving `public/` and forwarding PHP requests to `backend:9000`
+- `mysql:8.0` or another MySQL-compatible database
+- an outer TLS reverse proxy such as Caddy, nginx, Traefik, or a platform load balancer
+
+For example, a Docker Compose deployment can put Caddy in front of the web image:
+
+```text
+internet -> Caddy/TLS -> mio-server-web -> mio-server-backend -> MySQL
+```
+
+The web image expects the PHP-FPM service to be reachable as `backend:9000`.
+If your service is named differently, adjust the nginx production config or provide
+an equivalent web-server configuration.
+
+Required production environment includes:
+
+```dotenv
+APP_ENV=prod
+APP_SECRET=
+DATABASE_URL=mysql://user:password@db:3306/miolog?serverVersion=8.0.32&charset=utf8mb4
+CORS_ALLOW_ORIGIN=^https://your-pwa-domain.example$
+```
+
+Run migrations after starting a new deployment:
+
+```bash
+docker compose exec -T backend php bin/console doctrine:migrations:migrate --no-interaction
+```
+
+IGDB enrichment, if enabled, should be scheduled separately, for example with cron:
+
+```bash
+docker compose exec -T backend php bin/console app:igdb:enrich --limit=50
+```
+
 ## License
 
 MIT.

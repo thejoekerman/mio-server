@@ -1,0 +1,37 @@
+ai:
+    agent:
+        review_drafter:
+            platform: 'ai.platform.lmstudio'
+            model: 'mistralai/mistral-small-3.2'
+            prompt:
+                file: '%kernel.project_dir%/config/ai/prompts/review_drafter.txt'
+            tools: false
+
+        review_drafter_gemini:
+            platform: 'ai.platform.gemini'
+            model: 'gemini-2.5-flash-lite'
+            prompt:
+                file: '%kernel.project_dir%/config/ai/prompts/review_drafter.txt'
+            tools: false
+
+        play_next_suggester:
+            platform: 'ai.platform.lmstudio'
+            model: 'mistralai/mistral-small-3.2'
+            prompt:
+                file: '%kernel.project_dir%/config/ai/prompts/play_next_suggester.txt'
+            tools: false
+
+        play_next_suggester_gemini:
+            platform: 'ai.platform.gemini'
+            model: 'gemini-2.5-flash-lite'
+            prompt:
+                file: '%kernel.project_dir%/config/ai/prompts/play_next_suggester.txt'
+            tools: false
+
+    store:
+        # Store configuration
+
+        # chromadb:
+        #    default:
+        #        client: 'client.service.id'
+        #        collection: 'my_collection'

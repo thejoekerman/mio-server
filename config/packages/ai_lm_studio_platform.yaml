@@ -1,0 +1,4 @@
+ai:
+    platform:
+        lmstudio:
+            host_url: '%env(LMSTUDIO_HOST_URL)%'

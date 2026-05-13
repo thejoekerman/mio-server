@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: PHPUnit
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build backend image
+        run: docker compose build backend
+
+      - name: Start database
+        run: docker compose up -d db
+
+      - name: Install Composer dependencies
+        run: docker compose run --rm -e APP_ENV=test backend composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Run PHPUnit
+        run: docker compose run --rm -e APP_ENV=test backend php bin/phpunit --testdox
+
+      - name: Lint Symfony container
+        run: docker compose run --rm -e APP_ENV=test backend php bin/console lint:container
+
+      - name: Show Docker logs
+        if: failure()
+        run: docker compose logs backend db
+
+      - name: Stop Docker services
+        if: always()
+        run: docker compose down -v --remove-orphans

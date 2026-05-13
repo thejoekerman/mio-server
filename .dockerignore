@@ -1,0 +1,13 @@
+.git
+.idea
+.vscode
+.DS_Store
+
+.env.local
+.env.*.local
+.phpunit.cache
+
+var/
+vendor/
+public/assets/
+tmp/

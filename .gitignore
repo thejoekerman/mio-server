@@ -1,0 +1,11 @@
+.env.local
+.env.*.local
+.idea/
+.vscode/
+.DS_Store
+/tmp/
+/var/
+/vendor/
+/public/assets/
+/.phpunit.cache/
+MIO_SERVER_*.md

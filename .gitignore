@@ -9,3 +9,4 @@
 /public/assets/
 /.phpunit.cache/
 MIO_SERVER_*.md
+config/reference.php

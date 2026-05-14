@@ -33,6 +33,6 @@ final class AuthenticationTest extends ApiTestCase
         self::assertSame('you@example.com', $payload['user']['displayName']);
         self::assertIsBool($payload['capabilities']['reviewDraft']);
         self::assertIsBool($payload['capabilities']['playNext']);
-        self::assertIsBool($payload['capabilities']['gameDiscovery']);
+        self::assertArrayNotHasKey('gameDiscovery', $payload['capabilities']);
     }
 }

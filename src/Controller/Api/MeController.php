@@ -30,7 +30,6 @@ class MeController extends AbstractController
             'capabilities' => [
                 'reviewDraft' => $aiFeatureAvailability->reviewDraftAvailable(),
                 'playNext' => $aiFeatureAvailability->playNextAvailable(),
-                'gameDiscovery' => $aiFeatureAvailability->gameDiscoveryAvailable(),
             ],
         ]);
     }

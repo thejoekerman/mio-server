@@ -22,11 +22,6 @@ final readonly class AiFeatureAvailability
         return $this->providerAvailable($this->resolveProvider());
     }
 
-    public function gameDiscoveryAvailable(): bool
-    {
-        return $this->playNextAvailable();
-    }
-
     public function resolveProvider(): string
     {
         $provider = trim((string) $this->aiProvider);

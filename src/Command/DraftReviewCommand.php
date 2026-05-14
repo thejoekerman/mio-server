@@ -29,14 +29,14 @@ final class DraftReviewCommand extends Command
     {
         $this
             ->addArgument('gameId', InputArgument::REQUIRED, 'The UUID of the game to draft a review for.')
-            ->addOption('provider', null, InputOption::VALUE_REQUIRED, 'The drafting provider to use (lmstudio or gemini).', 'lmstudio');
+            ->addOption('provider', null, InputOption::VALUE_REQUIRED, 'Optional provider override (lmstudio or gemini).');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
         $gameId = (string) $input->getArgument('gameId');
-        $provider = (string) $input->getOption('provider');
+        $provider = $input->getOption('provider');
         $game = $this->gameRepository->find($gameId);
 
         if (null === $game) {
@@ -45,8 +45,15 @@ final class DraftReviewCommand extends Command
             return Command::FAILURE;
         }
 
-        $io->title(sprintf('Review Draft For %s (%s)', $game->getTitle(), $provider));
-        $io->writeln($this->reviewDraftingService->draftReview($game, $provider));
+        $io->title(sprintf(
+            'Review Draft For %s%s',
+            $game->getTitle(),
+            is_string($provider) && '' !== trim($provider) ? sprintf(' (%s)', $provider) : '',
+        ));
+        $io->writeln($this->reviewDraftingService->draftReview(
+            $game,
+            is_string($provider) && '' !== trim($provider) ? $provider : null,
+        ));
 
         return Command::SUCCESS;
     }

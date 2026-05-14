@@ -28,6 +28,20 @@ ai:
                 file: '%kernel.project_dir%/config/ai/prompts/play_next_suggester.txt'
             tools: false
 
+        game_discovery_suggester:
+            platform: 'ai.platform.lmstudio'
+            model: 'mistralai/mistral-small-3.2'
+            prompt:
+                file: '%kernel.project_dir%/config/ai/prompts/game_discovery_suggester.txt'
+            tools: false
+
+        game_discovery_suggester_gemini:
+            platform: 'ai.platform.gemini'
+            model: 'gemini-2.5-flash-lite'
+            prompt:
+                file: '%kernel.project_dir%/config/ai/prompts/game_discovery_suggester.txt'
+            tools: false
+
     store:
         # Store configuration
 

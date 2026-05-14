@@ -12,6 +12,8 @@ use Symfony\Component\DependencyInjection\Attribute\Target;
 
 final readonly class PlayNextRecommendationService
 {
+    private const MAX_CANDIDATES = 20;
+
     public function __construct(
         #[Target('play_next_suggester')]
         private AgentInterface $playNextSuggester,
@@ -29,16 +31,18 @@ final readonly class PlayNextRecommendationService
      * @param list<Game> $libraryGames
      * @return list<PlayNextRecommendation>
      */
-    public function recommend(array $libraryGames, ?string $provider = null): array
+    public function recommend(array $libraryGames, ?string $provider = null, string $language = 'en'): array
     {
-        $candidates = array_values(array_filter(
+        $backlogCandidates = array_values(array_filter(
             $libraryGames,
             static fn (Game $game): bool => null === $game->getDeletedAt() && 'backlog' === $game->getStatus(),
         ));
 
-        if ([] === $candidates) {
+        if ([] === $backlogCandidates) {
             throw new \RuntimeException('No backlog candidates are available for a recommendation.');
         }
+
+        $candidates = $this->selectPromptCandidates($libraryGames, $backlogCandidates);
 
         $agent = match ($provider ?? $this->resolveProvider()) {
             'lmstudio' => $this->playNextSuggester,
@@ -46,7 +50,7 @@ final readonly class PlayNextRecommendationService
             default => throw new \InvalidArgumentException('Unsupported play-next provider.'),
         };
 
-        $result = $agent->call(new MessageBag(Message::ofUser($this->buildPromptInput($libraryGames, $candidates))));
+        $result = $agent->call(new MessageBag(Message::ofUser($this->buildPromptInput($libraryGames, $candidates, $language))));
 
         if (!$result instanceof TextResult) {
             throw new \RuntimeException('Play-next suggester did not return text output.');
@@ -70,7 +74,7 @@ final readonly class PlayNextRecommendationService
      * @param list<Game> $libraryGames
      * @param list<Game> $candidates
      */
-    private function buildPromptInput(array $libraryGames, array $candidates): string
+    private function buildPromptInput(array $libraryGames, array $candidates, string $language): string
     {
         $recentFinished = array_values(array_filter(
             $libraryGames,
@@ -88,6 +92,7 @@ final readonly class PlayNextRecommendationService
 
         $lines = [
             'Recommend one next game from this MioLog backlog.',
+            sprintf('Write recommendation reasons in %s.', $this->languageLabel($language)),
             '',
             'Recent finished games and taste signals:',
         ];
@@ -102,13 +107,200 @@ final readonly class PlayNextRecommendationService
             : '- None were provided.';
 
         $lines[] = '';
-        $lines[] = 'Backlog candidates:';
+        $lines[] = sprintf('Backlog candidates, shortlisted from %d available backlog games:', count(array_filter(
+            $libraryGames,
+            static fn (Game $game): bool => null === $game->getDeletedAt() && 'backlog' === $game->getStatus(),
+        )));
         $lines[] = implode("\n", array_map(fn (Game $game): string => $this->formatCandidate($game), $candidates));
 
         $lines[] = '';
         $lines[] = 'Important recommendation goal: choose the backlog game that feels like the best next move right now.';
 
         return implode("\n", $lines);
+    }
+
+    /**
+     * @param list<Game> $libraryGames
+     * @param list<Game> $backlogCandidates
+     * @return list<Game>
+     */
+    private function selectPromptCandidates(array $libraryGames, array $backlogCandidates): array
+    {
+        if (count($backlogCandidates) <= self::MAX_CANDIDATES) {
+            return $backlogCandidates;
+        }
+
+        $recentFinished = array_values(array_filter(
+            $libraryGames,
+            static fn (Game $game): bool => null === $game->getDeletedAt() && 'finished' === $game->getStatus(),
+        ));
+
+        usort(
+            $recentFinished,
+            static fn (Game $left, Game $right): int => ($right->getFinishedAt() ?? $right->getUpdatedAt()) <=> ($left->getFinishedAt() ?? $left->getUpdatedAt()),
+        );
+
+        $recentTasteTags = $this->collectRecentTasteTags(array_slice($recentFinished, 0, 5));
+        $selected = [];
+        $remaining = $backlogCandidates;
+
+        $this->selectBest($selected, $remaining, 6, fn (Game $game): array => [
+            count(array_intersect($this->normalizeValues($game->getTags()), $recentTasteTags)),
+            $this->dateScore($game->getCreatedAt()),
+            $this->dateScore($game->getUpdatedAt()),
+        ]);
+
+        $this->selectBest($selected, $remaining, 5, fn (Game $game): array => [
+            $this->dateScore($game->getCreatedAt()),
+            $this->dateScore($game->getUpdatedAt()),
+        ]);
+
+        $this->selectByGroup($selected, $remaining, 4, fn (Game $game): string => $this->valueOrFallback($game->getPlatform(), 'unspecified'));
+        $this->selectByGroup($selected, $remaining, 3, fn (Game $game): string => $this->commitmentBucket($game));
+        $this->selectEvenly($selected, $remaining, self::MAX_CANDIDATES - count($selected));
+
+        return array_values($selected);
+    }
+
+    /**
+     * @param array<string, Game> $selected
+     * @param list<Game>          $remaining
+     * @param callable(Game): array<int, int> $score
+     */
+    private function selectBest(array &$selected, array &$remaining, int $limit, callable $score): void
+    {
+        usort(
+            $remaining,
+            function (Game $left, Game $right) use ($score): int {
+                return $score($right) <=> $score($left);
+            },
+        );
+
+        $this->takeFromRemaining($selected, $remaining, $limit);
+    }
+
+    /**
+     * @param array<string, Game> $selected
+     * @param list<Game>          $remaining
+     * @param callable(Game): string $groupBy
+     */
+    private function selectByGroup(array &$selected, array &$remaining, int $limit, callable $groupBy): void
+    {
+        $seenGroups = [];
+
+        foreach ($remaining as $index => $game) {
+            if (count($seenGroups) >= $limit) {
+                break;
+            }
+
+            $group = mb_strtolower(trim($groupBy($game)));
+
+            if (isset($seenGroups[$group])) {
+                continue;
+            }
+
+            $selected[$game->getId()] = $game;
+            $seenGroups[$group] = true;
+            unset($remaining[$index]);
+        }
+
+        $remaining = array_values($remaining);
+    }
+
+    /**
+     * @param array<string, Game> $selected
+     * @param list<Game>          $remaining
+     */
+    private function selectEvenly(array &$selected, array &$remaining, int $limit): void
+    {
+        if ($limit <= 0 || [] === $remaining) {
+            return;
+        }
+
+        $step = max(1, (int) floor(count($remaining) / $limit));
+        $indexes = range(0, count($remaining) - 1, $step);
+
+        foreach ($indexes as $index) {
+            if (count($selected) >= self::MAX_CANDIDATES || !isset($remaining[$index])) {
+                break;
+            }
+
+            $game = $remaining[$index];
+            $selected[$game->getId()] = $game;
+            unset($remaining[$index]);
+        }
+
+        $remaining = array_values($remaining);
+    }
+
+    /**
+     * @param array<string, Game> $selected
+     * @param list<Game>          $remaining
+     */
+    private function takeFromRemaining(array &$selected, array &$remaining, int $limit): void
+    {
+        foreach ($remaining as $index => $game) {
+            if (count($selected) >= self::MAX_CANDIDATES || $limit <= 0) {
+                break;
+            }
+
+            $selected[$game->getId()] = $game;
+            unset($remaining[$index]);
+            --$limit;
+        }
+
+        $remaining = array_values($remaining);
+    }
+
+    /**
+     * @param list<Game> $games
+     * @return list<string>
+     */
+    private function collectRecentTasteTags(array $games): array
+    {
+        $tags = [];
+
+        foreach ($games as $game) {
+            foreach ($this->normalizeValues($game->getTags()) as $tag) {
+                $tags[$tag] = true;
+            }
+        }
+
+        return array_keys($tags);
+    }
+
+    /**
+     * @param list<string> $values
+     * @return list<string>
+     */
+    private function normalizeValues(array $values): array
+    {
+        return array_values(array_filter(array_map(
+            static fn (string $value): string => mb_strtolower(trim($value)),
+            $values,
+        )));
+    }
+
+    private function dateScore(\DateTimeImmutable $date): int
+    {
+        return $date->getTimestamp();
+    }
+
+    private function commitmentBucket(Game $game): string
+    {
+        $playTime = $game->getPlayTimeHours();
+
+        if (null === $playTime) {
+            return 'unknown';
+        }
+
+        $hours = (float) $playTime;
+
+        return match (true) {
+            $hours <= 8.0 => 'short',
+            $hours <= 25.0 => 'medium',
+            default => 'long',
+        };
     }
 
     private function formatFinishedGame(Game $game): string
@@ -122,10 +314,10 @@ final readonly class PlayNextRecommendationService
 
         $review = trim($game->getReview());
         if ('' !== $review) {
-            $lines[] = sprintf('  review: %s', $this->truncate($review, 280));
+            $lines[] = sprintf('  review: %s', $this->truncate($review, 180));
         }
 
-        $logs = $this->formatLogHighlights($game, 2);
+        $logs = $this->formatLogHighlights($game, 1);
         if ([] !== $logs) {
             $lines[] = sprintf('  recent logs: %s', implode(' | ', $logs));
         }
@@ -264,5 +456,10 @@ final readonly class PlayNextRecommendationService
         $trimmed = trim($value);
 
         return '' !== $trimmed ? $trimmed : $fallback;
+    }
+
+    private function languageLabel(string $language): string
+    {
+        return 'de' === $language ? 'German' : 'English';
     }
 }

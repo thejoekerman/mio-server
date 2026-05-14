@@ -51,11 +51,16 @@ IGDB_CLIENT_SECRET=
 To enable AI helpers, configure the provider-specific keys you want to use:
 
 ```dotenv
-APP_AI_PLAY_NEXT_PROVIDER=
+AI_PROVIDER=
 OPENAI_API_KEY=
 GEMINI_API_KEY=
 LMSTUDIO_HOST_URL=http://host.docker.internal:1234
 ```
+
+When `AI_PROVIDER` is empty, development defaults to `lmstudio` and non-development
+environments default to `gemini`. All AI helpers use the same provider choice.
+AI endpoints accept an optional JSON body such as `{"language":"de"}` or
+`{"language":"en"}` so generated text can follow the PWA language.
 
 ## Useful Commands
 

@@ -17,18 +17,20 @@ final readonly class ReviewDraftingService
         private AgentInterface $reviewDrafter,
         #[Target('review_drafter_gemini')]
         private AgentInterface $reviewDrafterGemini,
+        private string $appEnv,
+        private ?string $configuredProvider = null,
     ) {
     }
 
-    public function draftReview(Game $game, string $provider = 'lmstudio'): string
+    public function draftReview(Game $game, ?string $provider = null, string $language = 'en'): string
     {
-        $agent = match ($provider) {
+        $agent = match ($provider ?? $this->resolveProvider()) {
             'lmstudio' => $this->reviewDrafter,
             'gemini' => $this->reviewDrafterGemini,
-            default => throw new \InvalidArgumentException(sprintf('Unsupported review draft provider "%s".', $provider)),
+            default => throw new \InvalidArgumentException('Unsupported review draft provider.'),
         };
 
-        $result = $agent->call(new MessageBag(Message::ofUser($this->buildPromptInput($game))));
+        $result = $agent->call(new MessageBag(Message::ofUser($this->buildPromptInput($game, $language))));
 
         if (!$result instanceof TextResult) {
             throw new \RuntimeException('Review drafter did not return text output.');
@@ -37,10 +39,22 @@ final readonly class ReviewDraftingService
         return trim($result->getContent());
     }
 
-    private function buildPromptInput(Game $game): string
+    private function resolveProvider(): string
+    {
+        $provider = trim((string) $this->configuredProvider);
+
+        if ('' !== $provider) {
+            return $provider;
+        }
+
+        return 'dev' === $this->appEnv ? 'lmstudio' : 'gemini';
+    }
+
+    private function buildPromptInput(Game $game, string $language): string
     {
         $lines = [
             'Draft a review for this game from the following MioLog context.',
+            sprintf('Write the review draft in %s.', $this->languageLabel($language)),
             '',
             'Game metadata:',
             sprintf('- Title: %s', $game->getTitle()),
@@ -95,5 +109,10 @@ final readonly class ReviewDraftingService
         $trimmed = trim($value);
 
         return '' !== $trimmed ? $trimmed : $fallback;
+    }
+
+    private function languageLabel(string $language): string
+    {
+        return 'de' === $language ? 'German' : 'English';
     }
 }

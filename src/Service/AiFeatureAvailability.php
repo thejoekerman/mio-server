@@ -8,32 +8,42 @@ final readonly class AiFeatureAvailability
         private ?string $geminiApiKey,
         private ?string $lmStudioHostUrl,
         private string $appEnv,
-        private ?string $playNextProvider = null,
+        private ?string $aiProvider = null,
     ) {
     }
 
     public function reviewDraftAvailable(): bool
     {
-        return null !== $this->geminiApiKey && '' !== trim($this->geminiApiKey);
+        return $this->providerAvailable($this->resolveProvider());
     }
 
     public function playNextAvailable(): bool
     {
-        return match ($this->resolvePlayNextProvider()) {
-            'lmstudio' => null !== $this->lmStudioHostUrl && '' !== trim($this->lmStudioHostUrl),
-            'gemini' => $this->reviewDraftAvailable(),
-            default => false,
-        };
+        return $this->providerAvailable($this->resolveProvider());
     }
 
-    private function resolvePlayNextProvider(): string
+    public function gameDiscoveryAvailable(): bool
     {
-        $provider = trim((string) $this->playNextProvider);
+        return $this->playNextAvailable();
+    }
+
+    public function resolveProvider(): string
+    {
+        $provider = trim((string) $this->aiProvider);
 
         if ('' !== $provider) {
             return $provider;
         }
 
         return 'dev' === $this->appEnv ? 'lmstudio' : 'gemini';
+    }
+
+    private function providerAvailable(string $provider): bool
+    {
+        return match ($provider) {
+            'lmstudio' => null !== $this->lmStudioHostUrl && '' !== trim($this->lmStudioHostUrl),
+            'gemini' => null !== $this->geminiApiKey && '' !== trim($this->geminiApiKey),
+            default => false,
+        };
     }
 }

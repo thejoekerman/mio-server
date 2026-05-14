@@ -8,12 +8,16 @@ use App\Repository\GameRepository;
 use App\Service\AiFeatureAvailability;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
 
 #[Route('/api/ai/review-draft/{gameId}', name: 'api_ai_review_draft', methods: ['POST'])]
 final class ReviewDraftController extends AbstractController
 {
+    use RequestLanguage;
+
     public function __invoke(
+        Request $request,
         string $gameId,
         GameRepository $gameRepository,
         ReviewDraftingService $reviewDraftingService,
@@ -43,7 +47,11 @@ final class ReviewDraftController extends AbstractController
 
         return $this->json([
             'gameId' => $game->getId(),
-            'draft' => $reviewDraftingService->draftReview($game, 'gemini'),
+            'draft' => $reviewDraftingService->draftReview(
+                $game,
+                null,
+                $this->resolveRequestLanguage($request),
+            ),
         ]);
     }
 }

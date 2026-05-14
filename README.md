@@ -1,14 +1,16 @@
-# mio-server
+<img src="public/miolog-chibi.png" alt="MioLog" width="128" />
 
-`mio-server` is the self-hostable backend for MioLog.
+# Mio Server
 
-It provides optional server-side features for the official MioLog PWA:
+`mio-server` is the self-hostable backend for [MioLog](https://miolog.net/).
+
+It provides optional server-side features for the official [MioLog PWA](https://app.miolog.net/):
 
 - sync for local-first data
 - cached IGDB metadata enrichment
 - optional AI helpers
 
-The official MioLog PWA is currently maintained as the reference client. This repository contains the backend/server project only.
+The official [MioLog PWA](https://app.miolog.net/) is currently maintained as the reference client. This repository contains the backend/server project only.
 
 ## Local Development
 
@@ -51,11 +53,15 @@ IGDB_CLIENT_SECRET=
 To enable AI helpers, configure the provider-specific keys you want to use:
 
 ```dotenv
-APP_AI_PLAY_NEXT_PROVIDER=
-OPENAI_API_KEY=
+AI_PROVIDER=
 GEMINI_API_KEY=
 LMSTUDIO_HOST_URL=http://host.docker.internal:1234
 ```
+
+When `AI_PROVIDER` is empty, development defaults to `lmstudio` and non-development
+environments default to `gemini`. All AI helpers use the same provider choice.
+AI endpoints accept an optional JSON body such as `{"language":"de"}` or
+`{"language":"en"}` so generated text can follow the PWA language.
 
 ## Useful Commands
 
@@ -66,23 +72,16 @@ make sync-token command="you@example.com iPhone"
 docker compose exec backend php bin/console app:igdb:enrich --limit=50
 ```
 
-## CI
+## Docker Images
 
-GitHub Actions runs the Docker-based test path:
-
-- build the backend image
-- start MySQL
-- install Composer dependencies
-- run PHPUnit
-- lint the Symfony container
-
-Tagged releases also publish Docker images to GitHub Container Registry.
-Pushing a tag such as `v0.1.0` publishes:
+Tagged releases publish production images to GitHub Container Registry:
 
 ```text
-ghcr.io/<owner>/mio-server-backend:v0.1.0
-ghcr.io/<owner>/mio-server-web:v0.1.0
+ghcr.io/thejoekerman/mio-server-backend:<tag>
+ghcr.io/thejoekerman/mio-server-web:<tag>
 ```
+
+Use `latest` for the newest published build or pin a release tag such as `v1.0.0`.
 
 ## Production Deployment
 
@@ -93,35 +92,200 @@ The published production images are intended to run as a small stack:
 - `mysql:8.0` or another MySQL-compatible database
 - an outer TLS reverse proxy such as Caddy, nginx, Traefik, or a platform load balancer
 
-For example, a Docker Compose deployment can put Caddy in front of the web image:
+The example below creates a complete Docker Compose deployment in `/opt/miolog`
+with Caddy handling HTTPS. Replace `miolog-api.example.com`, email addresses,
+and passwords before running it.
 
-```text
-internet -> Caddy/TLS -> mio-server-web -> mio-server-backend -> MySQL
-```
-
-The web image expects the PHP-FPM service to be reachable as `backend:9000`.
-If your service is named differently, adjust the nginx production config or provide
-an equivalent web-server configuration.
-
-Required production environment includes:
-
-```dotenv
-APP_ENV=prod
-APP_SECRET=
-DATABASE_URL=mysql://user:password@db:3306/miolog?serverVersion=8.0.32&charset=utf8mb4
-CORS_ALLOW_ORIGIN=^https://your-pwa-domain.example$
-```
-
-Run migrations after starting a new deployment:
+### 1. Create The Server Directory
 
 ```bash
-docker compose exec -T backend php bin/console doctrine:migrations:migrate --no-interaction
+sudo mkdir -p /opt/miolog
+sudo chown "$USER":"$USER" /opt/miolog
+cd /opt/miolog
 ```
 
-IGDB enrichment, if enabled, should be scheduled separately, for example with cron:
+### 2. Create `.env`
 
 ```bash
-docker compose exec -T backend php bin/console app:igdb:enrich --limit=50
+APP_SECRET_VALUE="$(openssl rand -hex 32)"
+
+cat > .env <<'EOF'
+# Public API domain for this backend. Point DNS at this server before starting Caddy.
+MIOLOG_DOMAIN=miolog-api.example.com
+CADDY_ACME_EMAIL=you@example.com
+
+# Symfony
+APP_SECRET=__APP_SECRET__
+APP_SHARE_DIR=var/share
+DEFAULT_URI=https://miolog-api.example.com
+CORS_ALLOW_ORIGIN=^https://app\.miolog\.net$
+SYMFONY_TRUSTED_PROXIES=private_ranges
+SYMFONY_TRUSTED_HOSTS=^miolog-api\.example\.com$
+
+# MySQL
+MYSQL_ROOT_PASSWORD=replace-with-a-root-password
+MYSQL_DATABASE=miolog
+MYSQL_USER=miolog
+MYSQL_PASSWORD=replace-with-an-app-password
+
+# Optional AI/enrichment settings
+AI_PROVIDER=
+GEMINI_API_KEY=
+LMSTUDIO_HOST_URL=
+IGDB_CLIENT_ID=
+IGDB_CLIENT_SECRET=
+
+# mio-server images
+MIOLOG_BACKEND_IMAGE=ghcr.io/thejoekerman/mio-server-backend:latest
+MIOLOG_WEB_IMAGE=ghcr.io/thejoekerman/mio-server-web:latest
+EOF
+
+sed -i "s/__APP_SECRET__/${APP_SECRET_VALUE}/" .env
+```
+
+### 3. Create `compose.yml`
+
+```bash
+cat > compose.yml <<'EOF'
+name: miolog
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      MIOLOG_DOMAIN: ${MIOLOG_DOMAIN:?Set MIOLOG_DOMAIN in .env}
+      CADDY_ACME_EMAIL: ${CADDY_ACME_EMAIL:?Set CADDY_ACME_EMAIL in .env}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      web:
+        condition: service_healthy
+    networks:
+      - public
+      - app
+
+  web:
+    image: ${MIOLOG_WEB_IMAGE:?Set MIOLOG_WEB_IMAGE in .env}
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/healthz >/dev/null"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - app
+
+  backend:
+    image: ${MIOLOG_BACKEND_IMAGE:?Set MIOLOG_BACKEND_IMAGE in .env}
+    restart: unless-stopped
+    environment:
+      APP_ENV: prod
+      APP_DEBUG: "0"
+      APP_SECRET: ${APP_SECRET:?Set APP_SECRET in .env}
+      APP_SHARE_DIR: ${APP_SHARE_DIR:-var/share}
+      DEFAULT_URI: ${DEFAULT_URI:?Set DEFAULT_URI in .env}
+      DATABASE_URL: mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db:3306/${MYSQL_DATABASE}?serverVersion=8.0.32&charset=utf8mb4
+      MESSENGER_TRANSPORT_DSN: ${MESSENGER_TRANSPORT_DSN:-doctrine://default?auto_setup=0}
+      CORS_ALLOW_ORIGIN: ${CORS_ALLOW_ORIGIN:?Set CORS_ALLOW_ORIGIN in .env}
+      SYMFONY_TRUSTED_PROXIES: ${SYMFONY_TRUSTED_PROXIES:-private_ranges}
+      SYMFONY_TRUSTED_HOSTS: ${SYMFONY_TRUSTED_HOSTS:?Set SYMFONY_TRUSTED_HOSTS in .env}
+      AI_PROVIDER: ${AI_PROVIDER:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      LMSTUDIO_HOST_URL: ${LMSTUDIO_HOST_URL:-}
+      IGDB_CLIENT_ID: ${IGDB_CLIENT_ID:-}
+      IGDB_CLIENT_SECRET: ${IGDB_CLIENT_SECRET:-}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - app
+      - egress
+
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:?Set MYSQL_DATABASE in .env}
+      MYSQL_USER: ${MYSQL_USER:?Set MYSQL_USER in .env}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u$${MYSQL_USER} -p$${MYSQL_PASSWORD} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - app
+
+volumes:
+  caddy_data:
+  caddy_config:
+  db_data:
+
+networks:
+  public:
+  egress:
+  app:
+    internal: true
+EOF
+```
+
+### 4. Create `Caddyfile`
+
+```bash
+cat > Caddyfile <<'EOF'
+{
+    email {$CADDY_ACME_EMAIL}
+}
+
+{$MIOLOG_DOMAIN} {
+    encode zstd gzip
+
+    reverse_proxy web:80
+}
+EOF
+```
+
+### 5. Start The Stack
+
+```bash
+docker compose -f compose.yml pull
+docker compose -f compose.yml up -d
+docker compose -f compose.yml exec -T backend php bin/console doctrine:migrations:migrate --no-interaction
+```
+
+Create a sync token for the PWA:
+
+```bash
+docker compose -f compose.yml exec -T backend php bin/console app:sync-token:create you@example.com "My device"
+```
+
+Then open the hosted [MioLog PWA](https://app.miolog.net/) at `https://app.miolog.net`, set the sync API
+base URL to your API domain, and paste the token.
+
+### Optional IGDB Enrichment Cron
+
+If `IGDB_CLIENT_ID` and `IGDB_CLIENT_SECRET` are configured, run enrichment on a
+schedule. For example:
+
+```cron
+23 3 * * * cd /opt/miolog && /usr/bin/docker compose -f compose.yml exec -T backend php bin/console app:igdb:enrich --limit=50 >> /opt/miolog/igdb-enrich.log 2>&1
 ```
 
 ## License

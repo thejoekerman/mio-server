@@ -8,7 +8,7 @@
 # https://symfony.com/doc/current/best_practices.html#use-parameters-for-application-configuration
 parameters:
     app.ai.gemini_api_key: '%env(default::GEMINI_API_KEY)%'
-    app.ai.play_next_provider: '%env(default::APP_AI_PLAY_NEXT_PROVIDER)%'
+    app.ai.provider: '%env(default::AI_PROVIDER)%'
     app.igdb.client_id: '%env(default::IGDB_CLIENT_ID)%'
     app.igdb.client_secret: '%env(default::IGDB_CLIENT_SECRET)%'
 
@@ -48,12 +48,22 @@ services:
             $geminiApiKey: '%app.ai.gemini_api_key%'
             $lmStudioHostUrl: '%env(default::LMSTUDIO_HOST_URL)%'
             $appEnv: '%kernel.environment%'
-            $playNextProvider: '%app.ai.play_next_provider%'
+            $aiProvider: '%app.ai.provider%'
+
+    App\AI\ReviewDraftingService:
+        arguments:
+            $appEnv: '%kernel.environment%'
+            $configuredProvider: '%app.ai.provider%'
 
     App\AI\PlayNextRecommendationService:
         arguments:
             $appEnv: '%kernel.environment%'
-            $configuredProvider: '%app.ai.play_next_provider%'
+            $configuredProvider: '%app.ai.provider%'
+
+    App\AI\GameDiscoveryRecommendationService:
+        arguments:
+            $appEnv: '%kernel.environment%'
+            $configuredProvider: '%app.ai.provider%'
 
     App\IGDB\IgdbClient:
         arguments:

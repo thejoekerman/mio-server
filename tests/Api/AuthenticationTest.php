@@ -31,7 +31,8 @@ final class AuthenticationTest extends ApiTestCase
         self::assertSame($auth['user']->getId(), $payload['user']['id']);
         self::assertSame('you@example.com', $payload['user']['email']);
         self::assertSame('you@example.com', $payload['user']['displayName']);
-        self::assertFalse($payload['capabilities']['reviewDraft']);
+        self::assertIsBool($payload['capabilities']['reviewDraft']);
         self::assertIsBool($payload['capabilities']['playNext']);
+        self::assertIsBool($payload['capabilities']['gameDiscovery']);
     }
 }

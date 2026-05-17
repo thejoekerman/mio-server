@@ -23,6 +23,9 @@ class User implements UserInterface
     #[ORM\Column(length: 180, nullable: true)]
     private ?string $displayName = null;
 
+    #[ORM\Column()]
+    private bool $aiUsage = false;
+
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
 
@@ -105,6 +108,18 @@ class User implements UserInterface
     public function setUpdatedAt(\DateTimeImmutable $updatedAt): static
     {
         $this->updatedAt = $updatedAt;
+
+        return $this;
+    }
+
+    public function getAiUsage(): bool
+    {
+        return $this->aiUsage;
+    }
+
+    public function setAiUsage(bool $aiUsage): static
+    {
+        $this->aiUsage = $aiUsage;
 
         return $this;
     }

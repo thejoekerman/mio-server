@@ -29,6 +29,22 @@ final class PlayNextControllerTest extends ApiTestCase
     #[TestDox('The play-next endpoint reports when recommendations are unavailable')]
     public function testPlayNextEndpointReportsWhenRecommendationsAreUnavailable(): void
     {
+        $auth = $this->createUserWithSyncToken(aiUsage: true);
+
+        $this->postJson('/api/ai/play-next', [], $auth['plainToken']);
+
+        self::assertSame(503, $this->client->getResponse()->getStatusCode());
+        self::assertJsonStringEqualsJsonString(
+            json_encode([
+                'error' => 'Play-next recommendations are not available on this backend.',
+            ], JSON_THROW_ON_ERROR),
+            $this->client->getResponse()->getContent() ?: '',
+        );
+    }
+
+    #[TestDox('The play-next endpoint rejects users without AI enabled')]
+    public function testPlayNextEndpointRejectsUsersWithoutAiEnabled(): void
+    {
         $auth = $this->createUserWithSyncToken();
 
         $this->postJson('/api/ai/play-next', [], $auth['plainToken']);

@@ -44,10 +44,12 @@ abstract class ApiTestCase extends WebTestCase
         string $email = 'you@example.com',
         string $plainToken = 'test-sync-token',
         string $tokenName = 'Test device',
+        bool $aiUsage = false,
     ): array {
         $user = (new User())
             ->setEmail($email)
-            ->setDisplayName($email);
+            ->setDisplayName($email)
+            ->setAiUsage($aiUsage);
 
         $token = (new SyncToken())
             ->setUser($user)

@@ -45,3 +45,9 @@ phpunit: test ## Alias for test
 
 sync-token: ## Create a sync token with `make sync-token command="you@example.com iPhone"`
 	docker compose exec backend php bin/console app:sync-token:create $(command)
+
+list-users: ## List users
+	docker compose exec backend php bin/console app:user:list
+
+ai-usage: ## Set ai usage for a user with `make app:user:ai-usage command="123 yes"`
+	docker compose exec backend php bin/console app:user:ai-usage $(command)

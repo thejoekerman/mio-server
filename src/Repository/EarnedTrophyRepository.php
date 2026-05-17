@@ -32,11 +32,17 @@ class EarnedTrophyRepository extends ServiceEntityRepository
 
     public function findOneForUserById(User $user, string $id): ?EarnedTrophy
     {
+        $ids = [$id];
+
+        if (null !== $user->getId()) {
+            $ids[] = sprintf('%d:%s', $user->getId(), $id);
+        }
+
         return $this->createQueryBuilder('earned_trophy')
             ->andWhere('earned_trophy.user = :user')
-            ->andWhere('earned_trophy.id = :id')
+            ->andWhere('earned_trophy.id IN (:ids)')
             ->setParameter('user', $user)
-            ->setParameter('id', $id)
+            ->setParameter('ids', array_values(array_unique($ids)))
             ->getQuery()
             ->getOneOrNullResult();
     }

@@ -92,9 +92,53 @@ final class SyncControllerTest extends ApiTestCase
         self::assertSame(['count' => 1], $payload['earnedTrophies'][0]['context']);
 
         /** @var EarnedTrophy $earnedTrophy */
-        $earnedTrophy = $this->entityManager->getRepository(EarnedTrophy::class)->find('trophy-first-log');
+        $earnedTrophy = $this->entityManager->getRepository(EarnedTrophy::class)->findOneBy([
+            'user' => $auth['user'],
+            'trophyId' => 'first-log',
+        ]);
 
         self::assertSame('first-log', $earnedTrophy->getTrophyId());
+    }
+
+    #[TestDox('The sync endpoint allows different users to earn the same trophy')]
+    public function testSyncEndpointAllowsDifferentUsersToEarnTheSameTrophy(): void
+    {
+        $firstAuth = $this->createUserWithSyncToken(
+            email: 'first@example.com',
+            plainToken: 'first-sync-token',
+        );
+        $secondAuth = $this->createUserWithSyncToken(
+            email: 'second@example.com',
+            plainToken: 'second-sync-token',
+        );
+
+        $payload = [
+            'games' => [],
+            'logs' => [],
+            'earnedTrophies' => [
+                [
+                    'id' => 'trophy-first-log',
+                    'trophyId' => 'first-log',
+                    'earnedAt' => '2026-04-23T10:30:00Z',
+                    'gameId' => null,
+                    'context' => ['count' => 1],
+                    'createdAt' => '2026-04-23T10:30:00Z',
+                    'updatedAt' => '2026-04-23T10:30:00Z',
+                    'deletedAt' => null,
+                ],
+            ],
+        ];
+
+        $this->postJson('/api/sync', $payload, $firstAuth['plainToken']);
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+
+        $this->postJson('/api/sync', $payload, $secondAuth['plainToken']);
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+
+        $responsePayload = json_decode($this->client->getResponse()->getContent() ?: '', true, 512, JSON_THROW_ON_ERROR);
+
+        self::assertSame('trophy-first-log', $responsePayload['earnedTrophies'][0]['id']);
+        self::assertCount(2, $this->entityManager->getRepository(EarnedTrophy::class)->findAll());
     }
 
     #[TestDox('The sync endpoint keeps newer game data when an older payload arrives later')]

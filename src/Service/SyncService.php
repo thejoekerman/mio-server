@@ -297,7 +297,7 @@ class SyncService
 
         if (!$earnedTrophy instanceof EarnedTrophy) {
             $earnedTrophy = (new EarnedTrophy())
-                ->setId($id)
+                ->setId($this->storageIdForUser($user, $id))
                 ->setUser($user);
 
             $this->entityManager->persist($earnedTrophy);
@@ -365,7 +365,7 @@ class SyncService
     private function serializeEarnedTrophy(EarnedTrophy $earnedTrophy): array
     {
         return [
-            'id' => $earnedTrophy->getId(),
+            'id' => $this->clientIdForUser($earnedTrophy->getUser(), $earnedTrophy->getId()),
             'trophyId' => $earnedTrophy->getTrophyId(),
             'earnedAt' => $this->formatDateTime($earnedTrophy->getEarnedAt()),
             'gameId' => $earnedTrophy->getGameId(),
@@ -388,6 +388,30 @@ class SyncService
         }
 
         return trim($value);
+    }
+
+    private function storageIdForUser(User $user, string $clientId): string
+    {
+        if (null === $user->getId()) {
+            return $clientId;
+        }
+
+        return sprintf('%d:%s', $user->getId(), $clientId);
+    }
+
+    private function clientIdForUser(?User $user, string $storageId): string
+    {
+        if (null === $user?->getId()) {
+            return $storageId;
+        }
+
+        $prefix = sprintf('%d:', $user->getId());
+
+        if (!str_starts_with($storageId, $prefix)) {
+            return $storageId;
+        }
+
+        return substr($storageId, strlen($prefix));
     }
 
     /**

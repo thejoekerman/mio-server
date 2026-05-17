@@ -30,7 +30,7 @@ final class PlayNextController extends AbstractController
             ], JsonResponse::HTTP_UNAUTHORIZED);
         }
 
-        if (!$aiFeatureAvailability->playNextAvailable()) {
+        if (!$user->getAiUsage() || !$aiFeatureAvailability->playNextAvailable()) {
             return $this->json([
                 'error' => 'Play-next recommendations are not available on this backend.',
             ], JsonResponse::HTTP_SERVICE_UNAVAILABLE);

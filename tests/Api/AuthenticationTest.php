@@ -18,8 +18,8 @@ final class AuthenticationTest extends ApiTestCase
         );
     }
 
-    #[TestDox('The me endpoint returns the authenticated user for a valid sync token')]
-    public function testMeEndpointReturnsTheAuthenticatedUserForAValidSyncToken(): void
+    #[TestDox('The me endpoint returns the authenticated user and disabled AI capabilities for a valid sync token')]
+    public function testMeEndpointReturnsTheAuthenticatedUserAndDisabledAiCapabilitiesForAValidSyncToken(): void
     {
         $auth = $this->createUserWithSyncToken();
 
@@ -31,8 +31,8 @@ final class AuthenticationTest extends ApiTestCase
         self::assertSame($auth['user']->getId(), $payload['user']['id']);
         self::assertSame('you@example.com', $payload['user']['email']);
         self::assertSame('you@example.com', $payload['user']['displayName']);
-        self::assertIsBool($payload['capabilities']['reviewDraft']);
-        self::assertIsBool($payload['capabilities']['playNext']);
+        self::assertFalse($payload['capabilities']['reviewDraft']);
+        self::assertFalse($payload['capabilities']['playNext']);
         self::assertArrayNotHasKey('gameDiscovery', $payload['capabilities']);
     }
 }

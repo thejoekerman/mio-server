@@ -21,6 +21,9 @@ class MeController extends AbstractController
             ], JsonResponse::HTTP_UNAUTHORIZED);
         }
 
+        $reviewDraft = $user->getAiUsage() && $aiFeatureAvailability->reviewDraftAvailable();
+        $playNext = $user->getAiUsage() && $aiFeatureAvailability->playNextAvailable();
+
         return $this->json([
             'user' => [
                 'id' => $user->getId(),
@@ -28,8 +31,8 @@ class MeController extends AbstractController
                 'displayName' => $user->getDisplayName(),
             ],
             'capabilities' => [
-                'reviewDraft' => $aiFeatureAvailability->reviewDraftAvailable(),
-                'playNext' => $aiFeatureAvailability->playNextAvailable(),
+                'reviewDraft' => $reviewDraft,
+                'playNext' => $playNext,
             ],
         ]);
     }

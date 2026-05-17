@@ -31,7 +31,7 @@ final class ReviewDraftController extends AbstractController
             ], JsonResponse::HTTP_UNAUTHORIZED);
         }
 
-        if (!$aiFeatureAvailability->reviewDraftAvailable()) {
+        if (!$user->getAiUsage() || !$aiFeatureAvailability->reviewDraftAvailable()) {
             return $this->json([
                 'error' => 'Review drafting is not available on this backend.',
             ], JsonResponse::HTTP_SERVICE_UNAVAILABLE);

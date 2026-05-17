@@ -10,6 +10,7 @@ use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
@@ -31,7 +32,8 @@ class CreateSyncTokenCommand extends Command
         $this
             ->addArgument('email', InputArgument::REQUIRED, 'User email')
             ->addArgument('token-name', InputArgument::REQUIRED, 'Token name, for example iPhone')
-            ->addArgument('display-name', InputArgument::OPTIONAL, 'Optional display name');
+            ->addArgument('display-name', InputArgument::OPTIONAL, 'Optional display name')
+            ->addOption('ai-usage', null, InputOption::VALUE_REQUIRED, 'Allow AI features for this user: yes or no');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -41,6 +43,7 @@ class CreateSyncTokenCommand extends Command
         $email = trim((string) $input->getArgument('email'));
         $tokenName = trim((string) $input->getArgument('token-name'));
         $displayName = trim((string) $input->getArgument('display-name'));
+        $aiUsageOption = $input->getOption('ai-usage');
 
         if ($email === '' || $tokenName === '') {
             $io->error('Email and token name are required.');
@@ -58,6 +61,18 @@ class CreateSyncTokenCommand extends Command
             $this->entityManager->persist($user);
         } elseif ($displayName !== '') {
             $user->setDisplayName($displayName);
+        }
+
+        if (null !== $aiUsageOption) {
+            $aiUsage = filter_var($aiUsageOption, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+
+            if (null === $aiUsage) {
+                $io->error('AI usage must be one of: yes, no, true, false, 1, 0.');
+
+                return Command::INVALID;
+            }
+
+            $user->setAiUsage($aiUsage);
         }
 
         $plainToken = bin2hex(random_bytes(32));

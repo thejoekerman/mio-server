@@ -3,6 +3,7 @@
 namespace App\Controller\Api;
 
 use App\Entity\User;
+use App\IGDB\IgdbClient;
 use App\Service\AiFeatureAvailability;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -11,7 +12,7 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/api/me', name: 'api_me', methods: ['GET'])]
 class MeController extends AbstractController
 {
-    public function __invoke(AiFeatureAvailability $aiFeatureAvailability): JsonResponse
+    public function __invoke(AiFeatureAvailability $aiFeatureAvailability, IgdbClient $igdbClient): JsonResponse
     {
         $user = $this->getUser();
 
@@ -33,6 +34,7 @@ class MeController extends AbstractController
             'capabilities' => [
                 'reviewDraft' => $reviewDraft,
                 'playNext' => $playNext,
+                'igdbMetadata' => $igdbClient->isConfigured(),
             ],
         ]);
     }

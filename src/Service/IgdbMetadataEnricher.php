@@ -26,6 +26,7 @@ final readonly class IgdbMetadataEnricher
                 && null !== $game->getIgdbPublishers()
                 && null !== $game->getIgdbThemes()
                 && null !== $game->getIgdbGameModes()
+                && null !== $game->getReleaseYear()
             )
         ) {
             return;
@@ -38,6 +39,7 @@ final readonly class IgdbMetadataEnricher
             || null === $game->getIgdbPublishers()
             || null === $game->getIgdbThemes()
             || null === $game->getIgdbGameModes()
+            || null === $game->getReleaseYear()
         ) {
             $metadata = $this->igdbClient->fetchGame($igdbId);
 
@@ -48,7 +50,8 @@ final readonly class IgdbMetadataEnricher
                     ->setIgdbDevelopers($metadata->developers)
                     ->setIgdbPublishers($metadata->publishers)
                     ->setIgdbThemes($metadata->themes)
-                    ->setIgdbGameModes($metadata->gameModes);
+                    ->setIgdbGameModes($metadata->gameModes)
+                    ->setReleaseYear($metadata->firstReleaseDate?->format('Y') ? (int) $metadata->firstReleaseDate->format('Y') : null);
             }
         }
 

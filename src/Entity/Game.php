@@ -79,6 +79,18 @@ class Game
     #[ORM\Column(type: Types::JSON, nullable: true)]
     private ?array $igdbGameModes = null;
 
+    #[ORM\Column(nullable: true)]
+    private ?int $releaseYear = null;
+
+    #[ORM\Column(length: 32, nullable: true)]
+    private ?string $priority = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $developer = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $publisher = null;
+
     #[ORM\Column(type: Types::DATE_IMMUTABLE, nullable: true)]
     private ?\DateTimeImmutable $finishedAt = null;
 
@@ -373,6 +385,64 @@ class Game
     public function setIgdbGameModes(?array $igdbGameModes): static
     {
         $this->igdbGameModes = null === $igdbGameModes ? null : $this->normalizeStringList($igdbGameModes);
+
+        return $this;
+    }
+
+    public function getReleaseYear(): ?int
+    {
+        return $this->releaseYear;
+    }
+
+    public function setReleaseYear(?int $releaseYear): static
+    {
+        if (null !== $releaseYear && ($releaseYear < 1970 || $releaseYear > ((int) date('Y')) + 1)) {
+            $releaseYear = null;
+        }
+
+        $this->releaseYear = $releaseYear;
+
+        return $this;
+    }
+
+    public function getPriority(): ?string
+    {
+        return $this->priority;
+    }
+
+    public function setPriority(?string $priority): static
+    {
+        $priority = null !== $priority ? trim($priority) : null;
+
+        $this->priority = in_array($priority, ['high-interest', 'low-pressure', 'save-for-later'], true)
+            ? $priority
+            : null;
+
+        return $this;
+    }
+
+    public function getDeveloper(): ?string
+    {
+        return $this->developer;
+    }
+
+    public function setDeveloper(?string $developer): static
+    {
+        $developer = null !== $developer ? trim($developer) : null;
+        $this->developer = '' !== $developer ? $developer : null;
+
+        return $this;
+    }
+
+    public function getPublisher(): ?string
+    {
+        return $this->publisher;
+    }
+
+    public function setPublisher(?string $publisher): static
+    {
+        $publisher = null !== $publisher ? trim($publisher) : null;
+        $this->publisher = '' !== $publisher ? $publisher : null;
 
         return $this;
     }

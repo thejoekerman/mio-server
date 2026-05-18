@@ -27,6 +27,10 @@ final class SyncControllerTest extends ApiTestCase
                     'platform' => 'PS5',
                     'ownershipType' => 'physical',
                     'tags' => ['JRPG', 'Action'],
+                    'releaseYear' => 2020,
+                    'priority' => 'high-interest',
+                    'developer' => 'Square Enix Creative Studio I',
+                    'publisher' => 'Square Enix',
                     'finishedAt' => null,
                     'pausedAt' => '2026-04-23',
                     'nudgeAt' => '2026-05-07',
@@ -57,6 +61,10 @@ final class SyncControllerTest extends ApiTestCase
         self::assertSame('Boss fight was dope!', $payload['logs'][0]['content']);
         self::assertSame(14.5, $payload['games'][0]['playTimeHours']);
         self::assertSame('physical', $payload['games'][0]['ownershipType']);
+        self::assertSame(2020, $payload['games'][0]['releaseYear']);
+        self::assertSame('high-interest', $payload['games'][0]['priority']);
+        self::assertSame('Square Enix Creative Studio I', $payload['games'][0]['developer']);
+        self::assertSame('Square Enix', $payload['games'][0]['publisher']);
         self::assertSame('2026-04-23', $payload['games'][0]['pausedAt']);
         self::assertSame('2026-05-07', $payload['games'][0]['nudgeAt']);
     }
@@ -384,6 +392,7 @@ final class SyncControllerTest extends ApiTestCase
                     'igdbPublishers' => ['Square Enix'],
                     'igdbThemes' => ['Action', 'Fantasy'],
                     'igdbGameModes' => ['Single player'],
+                    'releaseYear' => 2021,
                     'finishedAt' => null,
                     'createdAt' => '2026-04-23T09:00:00Z',
                     'updatedAt' => '2026-04-23T11:00:00Z',
@@ -409,6 +418,7 @@ final class SyncControllerTest extends ApiTestCase
         self::assertSame(['Square Enix'], $payload['games'][0]['igdbPublishers']);
         self::assertSame(['Action', 'Fantasy'], $payload['games'][0]['igdbThemes']);
         self::assertSame(['Single player'], $payload['games'][0]['igdbGameModes']);
+        self::assertSame(2021, $payload['games'][0]['releaseYear']);
     }
 
     #[TestDox('The sync endpoint keeps server-enriched IGDB metadata when a stale client sends null cache fields')]

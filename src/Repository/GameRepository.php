@@ -65,7 +65,7 @@ class GameRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('game')
             ->andWhere('game.deletedAt IS NULL')
             ->andWhere('game.igdbId IS NOT NULL')
-            ->andWhere('game.coverUrl IS NULL OR game.igdbUrl IS NULL OR game.igdbTtbCount IS NULL OR game.igdbDevelopers IS NULL OR game.igdbPublishers IS NULL OR game.igdbThemes IS NULL OR game.igdbGameModes IS NULL')
+            ->andWhere('game.coverUrl IS NULL OR game.igdbUrl IS NULL OR game.igdbTtbCount IS NULL OR game.igdbDevelopers IS NULL OR game.igdbPublishers IS NULL OR game.igdbThemes IS NULL OR game.igdbGameModes IS NULL OR game.releaseYear IS NULL')
             ->orderBy('game.updatedAt', 'DESC')
             ->getQuery()
             ->getResult();

@@ -136,6 +136,22 @@ class SyncService
             $game->setNudgeAt($this->dateOnlyOrNull($data['nudgeAt'], 'nudgeAt'));
         }
 
+        if (array_key_exists('releaseYear', $data)) {
+            $game->setReleaseYear($this->positiveIntOrNull($data['releaseYear']));
+        }
+
+        if (array_key_exists('priority', $data)) {
+            $game->setPriority($this->stringOrNull($data['priority']));
+        }
+
+        if (array_key_exists('developer', $data)) {
+            $game->setDeveloper($this->stringOrNull($data['developer']));
+        }
+
+        if (array_key_exists('publisher', $data)) {
+            $game->setPublisher($this->stringOrNull($data['publisher']));
+        }
+
         if ($hasIncomingIgdbId && $previousIgdbId !== $incomingIgdbId) {
             $game
                 ->setIgdbUrl(null)
@@ -248,6 +264,14 @@ class SyncService
                 $game->setIgdbGameModes($gameModes);
             }
         }
+
+        if (array_key_exists('releaseYear', $data)) {
+            $releaseYear = $this->positiveIntOrNull($data['releaseYear']);
+
+            if (null !== $releaseYear || null === $game->getReleaseYear()) {
+                $game->setReleaseYear($releaseYear);
+            }
+        }
     }
 
     /**
@@ -341,6 +365,10 @@ class SyncService
             'igdbPublishers' => $game->getIgdbPublishers(),
             'igdbThemes' => $game->getIgdbThemes(),
             'igdbGameModes' => $game->getIgdbGameModes(),
+            'releaseYear' => $game->getReleaseYear(),
+            'priority' => $game->getPriority(),
+            'developer' => $game->getDeveloper(),
+            'publisher' => $game->getPublisher(),
             'finishedAt' => $game->getFinishedAt()?->format('Y-m-d'),
             'pausedAt' => $game->getPausedAt()?->format('Y-m-d'),
             'nudgeAt' => $game->getNudgeAt()?->format('Y-m-d'),

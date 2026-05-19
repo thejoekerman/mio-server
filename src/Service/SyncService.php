@@ -137,19 +137,59 @@ class SyncService
         }
 
         if (array_key_exists('releaseYear', $data)) {
-            $game->setReleaseYear($this->positiveIntOrNull($data['releaseYear']));
+            $this->mergeEnrichableField(
+                $game,
+                $data,
+                'releaseYear',
+                'releaseYearUpdatedAt',
+                fn($val) => $this->positiveIntOrNull($val),
+                fn($game) => $game->getReleaseYear(),
+                fn($game) => $game->getReleaseYearUpdatedAt(),
+                fn($game, $val) => $game->setReleaseYear($val),
+                fn($game, $val) => $game->setReleaseYearUpdatedAt($val),
+            );
         }
 
         if (array_key_exists('priority', $data)) {
-            $game->setPriority($this->stringOrNull($data['priority']));
+            $this->mergeEnrichableField(
+                $game,
+                $data,
+                'priority',
+                'priorityUpdatedAt',
+                fn($val) => $this->stringOrNull($val),
+                fn($game) => $game->getPriority(),
+                fn($game) => $game->getPriorityUpdatedAt(),
+                fn($game, $val) => $game->setPriority($val),
+                fn($game, $val) => $game->setPriorityUpdatedAt($val),
+            );
         }
 
         if (array_key_exists('developer', $data)) {
-            $game->setDeveloper($this->stringOrNull($data['developer']));
+            $this->mergeEnrichableField(
+                $game,
+                $data,
+                'developer',
+                'developerUpdatedAt',
+                fn($val) => $this->stringOrNull($val),
+                fn($game) => $game->getDeveloper(),
+                fn($game) => $game->getDeveloperUpdatedAt(),
+                fn($game, $val) => $game->setDeveloper($val),
+                fn($game, $val) => $game->setDeveloperUpdatedAt($val),
+            );
         }
 
         if (array_key_exists('publisher', $data)) {
-            $game->setPublisher($this->stringOrNull($data['publisher']));
+            $this->mergeEnrichableField(
+                $game,
+                $data,
+                'publisher',
+                'publisherUpdatedAt',
+                fn($val) => $this->stringOrNull($val),
+                fn($game) => $game->getPublisher(),
+                fn($game) => $game->getPublisherUpdatedAt(),
+                fn($game, $val) => $game->setPublisher($val),
+                fn($game, $val) => $game->setPublisherUpdatedAt($val),
+            );
         }
 
         if ($hasIncomingIgdbId && $previousIgdbId !== $incomingIgdbId) {
@@ -369,6 +409,18 @@ class SyncService
             'priority' => $game->getPriority(),
             'developer' => $game->getDeveloper(),
             'publisher' => $game->getPublisher(),
+            'developerUpdatedAt' => null !== $game->getDeveloperUpdatedAt()
+                ? $this->formatDateTime($game->getDeveloperUpdatedAt())
+                : null,
+            'publisherUpdatedAt' => null !== $game->getPublisherUpdatedAt()
+                ? $this->formatDateTime($game->getPublisherUpdatedAt())
+                : null,
+            'releaseYearUpdatedAt' => null !== $game->getReleaseYearUpdatedAt()
+                ? $this->formatDateTime($game->getReleaseYearUpdatedAt())
+                : null,
+            'priorityUpdatedAt' => null !== $game->getPriorityUpdatedAt()
+                ? $this->formatDateTime($game->getPriorityUpdatedAt())
+                : null,
             'finishedAt' => $game->getFinishedAt()?->format('Y-m-d'),
             'pausedAt' => $game->getPausedAt()?->format('Y-m-d'),
             'nudgeAt' => $game->getNudgeAt()?->format('Y-m-d'),
@@ -615,5 +667,45 @@ class SyncService
     private function formatDateTime(\DateTimeImmutable $dateTime): string
     {
         return $dateTime->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d\TH:i:s\Z');
+    }
+
+    /**
+     * Merge an enrichable field (developer, publisher, releaseYear, priority) using per-field timestamps.
+     * Accepts incoming value if:
+     * - No stored timestamp (field never enriched), or
+     * - Incoming has a timestamp AND it's >= stored timestamp (timestamp-based conflict resolution)
+     * - Field is explicitly in payload with a value (user action)
+     */
+    private function mergeEnrichableField(
+        Game $game,
+        array $data,
+        string $fieldKey,
+        string $timestampKey,
+        callable $normalizer,
+        callable $getCurrentValue,
+        callable $getStoredTimestamp,
+        callable $setSetter,
+        callable $setTimestampSetter,
+    ): void {
+        $incomingValue = $normalizer($data[$fieldKey] ?? null);
+        $incomingTimestamp = array_key_exists($timestampKey, $data)
+            ? $this->dateTimeOrNull($data[$timestampKey])
+            : null;
+        $storedTimestamp = $getStoredTimestamp($game);
+
+        // Accept the change if:
+        // 1. No stored timestamp (field was never enriched), or
+        // 2. Incoming has a newer timestamp (server enrichment or timestamped user action), or
+        // 3. Incoming value is not null and we have no timestamp (user explicitly set it)
+        if (
+            null === $storedTimestamp
+            || (null !== $incomingTimestamp && $incomingTimestamp >= $storedTimestamp)
+            || null !== $incomingValue
+        ) {
+            $setSetter($game, $incomingValue);
+            if (null !== $incomingTimestamp) {
+                $setTimestampSetter($game, $incomingTimestamp);
+            }
+        }
     }
 }

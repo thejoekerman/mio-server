@@ -107,6 +107,18 @@ class Game
     private \DateTimeImmutable $updatedAt;
 
     #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $developerUpdatedAt = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $publisherUpdatedAt = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $releaseYearUpdatedAt = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $priorityUpdatedAt = null;
+
+    #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $deletedAt = null;
 
     /**
@@ -120,6 +132,10 @@ class Game
         $this->logEntries = new ArrayCollection();
         $this->createdAt = new \DateTimeImmutable();
         $this->updatedAt = new \DateTimeImmutable();
+        $this->developerUpdatedAt = null;
+        $this->publisherUpdatedAt = null;
+        $this->releaseYearUpdatedAt = null;
+        $this->priorityUpdatedAt = null;
     }
 
     public function getId(): string
@@ -515,6 +531,54 @@ class Game
     public function setDeletedAt(?\DateTimeImmutable $deletedAt): static
     {
         $this->deletedAt = $deletedAt;
+
+        return $this;
+    }
+
+    public function getDeveloperUpdatedAt(): ?\DateTimeImmutable
+    {
+        return $this->developerUpdatedAt;
+    }
+
+    public function setDeveloperUpdatedAt(?\DateTimeImmutable $developerUpdatedAt): static
+    {
+        $this->developerUpdatedAt = $developerUpdatedAt;
+
+        return $this;
+    }
+
+    public function getPublisherUpdatedAt(): ?\DateTimeImmutable
+    {
+        return $this->publisherUpdatedAt;
+    }
+
+    public function setPublisherUpdatedAt(?\DateTimeImmutable $publisherUpdatedAt): static
+    {
+        $this->publisherUpdatedAt = $publisherUpdatedAt;
+
+        return $this;
+    }
+
+    public function getReleaseYearUpdatedAt(): ?\DateTimeImmutable
+    {
+        return $this->releaseYearUpdatedAt;
+    }
+
+    public function setReleaseYearUpdatedAt(?\DateTimeImmutable $releaseYearUpdatedAt): static
+    {
+        $this->releaseYearUpdatedAt = $releaseYearUpdatedAt;
+
+        return $this;
+    }
+
+    public function getPriorityUpdatedAt(): ?\DateTimeImmutable
+    {
+        return $this->priorityUpdatedAt;
+    }
+
+    public function setPriorityUpdatedAt(?\DateTimeImmutable $priorityUpdatedAt): static
+    {
+        $this->priorityUpdatedAt = $priorityUpdatedAt;
 
         return $this;
     }

@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "25b2d975c42829437f5ad2265590d059",
+    "content-hash": "a6de4d2b567a7c121866afc2d1a31aba",
     "packages": [
         {
             "name": "composer/semver",
@@ -1298,6 +1298,30 @@
                 }
             ],
             "time": "2026-01-02T08:56:05+00:00"
+        },
+        {
+            "name": "move-elevator/makefile-tools",
+            "version": "1.0.4",
+            "source": {
+                "type": "git",
+                "url": "https://gitlab.com/move-elevator-gmbh/public/makefile-tools.git",
+                "reference": "8b93eef381f78d73a93d50ad720bdd4bc68528f1"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://gitlab.com/api/v4/projects/move-elevator-gmbh%2Fpublic%2Fmakefile-tools/repository/archive.zip?sha=8b93eef381f78d73a93d50ad720bdd4bc68528f1",
+                "reference": "8b93eef381f78d73a93d50ad720bdd4bc68528f1",
+                "shasum": ""
+            },
+            "type": "library",
+            "license": [
+                "MIT"
+            ],
+            "description": "Makefile tools packaged into a includable Makefile.internal file.",
+            "support": {
+                "source": "https://gitlab.com/move-elevator-gmbh/public/makefile-tools/-/tree/1.0.4"
+            },
+            "time": "2025-08-07T09:40:35+00:00"
         },
         {
             "name": "nelmio/cors-bundle",

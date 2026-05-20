@@ -1,53 +1,91 @@
-.PHONY: help build up start stop logs install shell console migrate migrations-diff test phpunit sync-token
+# Include the internal makefile targets
+-include vendor/move-elevator/makefile-tools/Makefile.internal
 
-help:
-	@grep -Ehs '^[a-zA-Z_-]+:.*?## .*$$' Makefile Makefile.local | \
-	awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
-
-build: ## Build and start the local server stack
+.PHONY: build
+## Build and start the local server stack
+build:
 	docker compose up -d --build
 
-up: ## Start the local server stack
+.PHONY: up
+## Start the local server stack
+up:
 	docker compose up -d
 
-start: up ## Alias for up
+.PHONY: start
+## Alias for up
+start: up
 
-stop: ## Stop the local server stack
+.PHONY: stop
+## Stop the local server stack
+stop:
 	docker compose stop
 
-logs: ## Follow backend and nginx logs
+.PHONY: logs
+## Follow backend and nginx logs
+logs:
 	docker compose logs -f backend nginx
 
-install: ## Install backend Composer dependencies
+.PHONY: install
+## Install backend Composer dependencies
+install:
 	docker compose exec backend composer install
 
-shell: ## Open a shell in the backend container
+.PHONY: shell
+## Open a shell in the backend container
+shell:
 	docker compose exec backend bash
 
-console: ## Run a Symfony console command with `make console command="debug:router"`
-	docker compose exec backend php bin/console $(command)
+.PHONY: console
+## Run a Symfony console command in container
+## Usage: make console debug:router
+console:
+	docker compose exec backend php bin/console $(Arguments)
 
-command-in-backend: ## Run a command in the backend container with `make command-in-backend command="composer install"`
-	docker compose exec backend $(command)
+.PHONY: command-in-backend
+## Run a command in the backend container
+## Usage: make command-in-backend composer install
+command-in-backend:
+	docker compose exec backend $(Arguments)
 
-migrations-diff: ## Generate a Doctrine migration diff
+.PHONY: migrations-diff
+## Generate a Doctrine migration diff
+migrations-diff:
 	docker compose exec backend php bin/console doctrine:migrations:diff
 
-migrate: ## Run Doctrine migrations
+.PHONY: migrate
+## Run Doctrine migrations
+migrate:
 	docker compose exec backend php bin/console doctrine:migrations:migrate
 
-migrations-migrate: migrate ## Alias for migrate
+.PHONY: migrations-migrate
+## Alias for migrate
+migrations-migrate: migrate
 
-test: ## Run PHPUnit tests
+.PHONY: test
+## Run PHPUnit tests
+test:
 	docker compose exec backend php bin/phpunit --testdox
 
-phpunit: test ## Alias for test
+.PHONY: phpunit
+## Alias for test
+phpunit: test
 
-sync-token: ## Create a sync token with `make sync-token command="you@example.com iPhone"`
-	docker compose exec backend php bin/console app:sync-token:create $(command)
+.PHONY: sync-token
+## Create a sync token
+## Usage: make sync-token you@example.com iPhone
+sync-token:
+	docker compose exec backend php bin/console app:sync-token:create $(Arguments)
+
+.PHONY: list-users
 
 list-users: ## List users
 	docker compose exec backend php bin/console app:user:list
 
-ai-usage: ## Set ai usage for a user with `make app:user:ai-usage command="123 yes"`
-	docker compose exec backend php bin/console app:user:ai-usage $(command)
+.PHONY: ai-usage
+## Set ai usage for a user
+## Usage: make ai-usage 123 yes
+ai-usage:
+	docker compose exec backend php bin/console app:user:ai-usage $(Arguments)
+
+%::
+	@true

@@ -12,6 +12,7 @@
         "doctrine/doctrine-bundle": "^3.2",
         "doctrine/doctrine-migrations-bundle": "^4.0",
         "doctrine/orm": "^3.6",
+        "move-elevator/makefile-tools": "^1.0",
         "nelmio/cors-bundle": "^2.6",
         "phpdocumentor/reflection-docblock": "^6.0",
         "phpstan/phpdoc-parser": "^2.3",
@@ -30,6 +31,7 @@
         "symfony/framework-bundle": "8.0.*",
         "symfony/http-client": "8.0.*",
         "symfony/intl": "8.0.*",
+        "symfony/lock": "8.0.*",
         "symfony/mime": "8.0.*",
         "symfony/monolog-bundle": "^3.0|^4.0",
         "symfony/process": "8.0.*",
@@ -110,5 +112,11 @@
         "symfony/maker-bundle": "^1.0",
         "symfony/stopwatch": "8.0.*",
         "symfony/web-profiler-bundle": "8.0.*"
-    }
+    },
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://gitlab.com/move-elevator-gmbh/public/makefile-tools.git"
+        }
+    ]
 }

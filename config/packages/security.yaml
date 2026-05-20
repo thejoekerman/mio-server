@@ -17,4 +17,5 @@ security:
 
     access_control:
         - { path: ^/api/me$, roles: ROLE_USER }
+        - { path: ^/api/enrich$, roles: ROLE_USER }
         - { path: ^/api/ai/, roles: ROLE_USER }

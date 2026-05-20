@@ -58,7 +58,7 @@ jobs:
             type=sha,prefix=sha-
 
       - name: Build and push backend image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: _docker/backend/Dockerfile.prod
@@ -70,7 +70,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=backend
 
       - name: Build and push web image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: _docker/backend/Dockerfile.prod

@@ -14,6 +14,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
+use Symfony\Component\Lock\LockFactory;
 
 #[AsCommand(
     name: 'app:igdb:enrich',
@@ -22,6 +23,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 final class EnrichIgdbMetadataCommand extends Command
 {
     public function __construct(
+        private LockFactory $lockFactory,
         private readonly EntityManagerInterface $entityManager,
         private readonly GameRepository $gameRepository,
         private readonly IgdbClient $igdbClient,
@@ -32,11 +34,19 @@ final class EnrichIgdbMetadataCommand extends Command
 
     protected function configure(): void
     {
-        $this->addOption('limit', null, InputOption::VALUE_REQUIRED, 'Maximum games to enrich in this run.', 50);
+        $this->addOption('limit', null, InputOption::VALUE_REQUIRED, 'Maximum games to enrich in this run.', 100);
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
+        $lock = $this->lockFactory->createLock('igdb-enrich');
+
+        if (false === $lock->acquire()) {
+            $output->writeln('<error>Command is already running.</error>');
+
+            return Command::FAILURE;
+        }
+
         $io = new SymfonyStyle($input, $output);
         $limit = max(1, (int) $input->getOption('limit'));
 
@@ -44,6 +54,8 @@ final class EnrichIgdbMetadataCommand extends Command
 
         if (null !== $authenticationError) {
             $io->error(sprintf('IGDB enrichment authentication failed. %s', $authenticationError));
+
+            $lock->release();
 
             return Command::FAILURE;
         }
@@ -54,6 +66,8 @@ final class EnrichIgdbMetadataCommand extends Command
 
         if ([] === $games) {
             $io->success('No games need IGDB enrichment.');
+
+            $lock->release();
 
             return Command::SUCCESS;
         }
@@ -75,6 +89,8 @@ final class EnrichIgdbMetadataCommand extends Command
 
         $this->entityManager->flush();
         $io->success(sprintf('Enriched %d of %d candidate games.', $enriched, count($games)));
+
+        $lock->release();
 
         return Command::SUCCESS;
     }

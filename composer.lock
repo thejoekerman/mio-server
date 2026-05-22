@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "adf596b8d064a7e186c3d96c969ef274",
+    "content-hash": "c0ad90c79da4a0d162ddb350d3f9a8ae",
     "packages": [
         {
             "name": "composer/semver",
@@ -1301,16 +1301,16 @@
         },
         {
             "name": "move-elevator/makefile-tools",
-            "version": "1.0.4",
+            "version": "1.1.0",
             "source": {
                 "type": "git",
                 "url": "https://gitlab.com/move-elevator-gmbh/public/makefile-tools.git",
-                "reference": "8b93eef381f78d73a93d50ad720bdd4bc68528f1"
+                "reference": "8c706af61fb4c7c8c0d911306d20f4dab9d797eb"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://gitlab.com/api/v4/projects/move-elevator-gmbh%2Fpublic%2Fmakefile-tools/repository/archive.zip?sha=8b93eef381f78d73a93d50ad720bdd4bc68528f1",
-                "reference": "8b93eef381f78d73a93d50ad720bdd4bc68528f1",
+                "url": "https://gitlab.com/api/v4/projects/move-elevator-gmbh%2Fpublic%2Fmakefile-tools/repository/archive.zip?sha=8c706af61fb4c7c8c0d911306d20f4dab9d797eb",
+                "reference": "8c706af61fb4c7c8c0d911306d20f4dab9d797eb",
                 "shasum": ""
             },
             "type": "library",
@@ -1319,9 +1319,9 @@
             ],
             "description": "Makefile tools packaged into a includable Makefile.internal file.",
             "support": {
-                "source": "https://gitlab.com/move-elevator-gmbh/public/makefile-tools/-/tree/1.0.4"
+                "source": "https://gitlab.com/move-elevator-gmbh/public/makefile-tools/-/tree/1.1.0"
             },
-            "time": "2025-08-07T09:40:35+00:00"
+            "time": "2026-05-21T07:54:01+00:00"
         },
         {
             "name": "nelmio/cors-bundle",

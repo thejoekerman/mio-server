@@ -47,52 +47,50 @@ final class EnrichIgdbMetadataCommand extends Command
             return Command::FAILURE;
         }
 
-        $io = new SymfonyStyle($input, $output);
-        $limit = max(1, (int) $input->getOption('limit'));
+        try {
+            $io = new SymfonyStyle($input, $output);
+            $limit = max(1, (int) $input->getOption('limit'));
 
-        $authenticationError = $this->igdbClient->authenticationError();
+            $authenticationError = $this->igdbClient->authenticationError();
 
-        if (null !== $authenticationError) {
-            $io->error(sprintf('IGDB enrichment authentication failed. %s', $authenticationError));
+            if (null !== $authenticationError) {
+                $io->error(sprintf('IGDB enrichment authentication failed. %s', $authenticationError));
 
-            $lock->release();
+                return Command::FAILURE;
+            }
 
-            return Command::FAILURE;
-        }
+            $io->writeln('IGDB credentials are configured and Twitch authentication succeeded.');
 
-        $io->writeln('IGDB credentials are configured and Twitch authentication succeeded.');
+            $games = array_slice($this->gameRepository->findMissingIgdbMetadata(), 0, $limit);
 
-        $games = array_slice($this->gameRepository->findMissingIgdbMetadata(), 0, $limit);
+            if ([] === $games) {
+                $io->success('No games need IGDB enrichment.');
 
-        if ([] === $games) {
-            $io->success('No games need IGDB enrichment.');
+                return Command::SUCCESS;
+            }
 
-            $lock->release();
+            $enriched = 0;
+
+            foreach ($games as $game) {
+                $previousMetadata = $this->metadataFingerprint($game);
+
+                $this->igdbMetadataEnricher->enrich($game);
+
+                if ($previousMetadata !== $this->metadataFingerprint($game)) {
+                    ++$enriched;
+                    $io->writeln(sprintf('Enriched %s (%s)', $game->getTitle(), $game->getIgdbId()));
+                } else {
+                    $io->warning(sprintf('No IGDB metadata changes for %s (%s).', $game->getTitle(), $game->getIgdbId()));
+                }
+            }
+
+            $this->entityManager->flush();
+            $io->success(sprintf('Enriched %d of %d candidate games.', $enriched, count($games)));
 
             return Command::SUCCESS;
+        } finally {
+            $lock->release();
         }
-
-        $enriched = 0;
-
-        foreach ($games as $game) {
-            $previousMetadata = $this->metadataFingerprint($game);
-
-            $this->igdbMetadataEnricher->enrich($game);
-
-            if ($previousMetadata !== $this->metadataFingerprint($game)) {
-                ++$enriched;
-                $io->writeln(sprintf('Enriched %s (%s)', $game->getTitle(), $game->getIgdbId()));
-            } else {
-                $io->warning(sprintf('No IGDB metadata changes for %s (%s).', $game->getTitle(), $game->getIgdbId()));
-            }
-        }
-
-        $this->entityManager->flush();
-        $io->success(sprintf('Enriched %d of %d candidate games.', $enriched, count($games)));
-
-        $lock->release();
-
-        return Command::SUCCESS;
     }
 
     /**

@@ -5,6 +5,7 @@ namespace App\Repository;
 use App\Entity\Game;
 use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
@@ -62,12 +63,30 @@ class GameRepository extends ServiceEntityRepository
      */
     public function findMissingIgdbMetadata(): array
     {
+        return $this->missingIgdbMetadataQueryBuilder()
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * @return list<Game>
+     */
+    public function findMissingIgdbMetadataForUser(User $user, int $limit): array
+    {
+        return $this->missingIgdbMetadataQueryBuilder()
+            ->andWhere('game.user = :user')
+            ->setParameter('user', $user)
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
+    private function missingIgdbMetadataQueryBuilder(): QueryBuilder
+    {
         return $this->createQueryBuilder('game')
             ->andWhere('game.deletedAt IS NULL')
             ->andWhere('game.igdbId IS NOT NULL')
             ->andWhere('game.coverUrl IS NULL OR game.igdbUrl IS NULL OR game.igdbTtbCount IS NULL OR game.igdbDevelopers IS NULL OR game.igdbPublishers IS NULL OR game.igdbThemes IS NULL OR game.igdbGameModes IS NULL OR game.releaseYear IS NULL')
-            ->orderBy('game.updatedAt', 'DESC')
-            ->getQuery()
-            ->getResult();
+            ->orderBy('game.updatedAt', 'DESC');
     }
 }

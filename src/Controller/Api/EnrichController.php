@@ -2,6 +2,7 @@
 
 namespace App\Controller\Api;
 
+use App\Entity\User;
 use App\Exception\EnrichAlreadyRunningException;
 use App\Message\EnrichIgdbMetadataMessage;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -20,8 +21,14 @@ class EnrichController extends AbstractController
 
     public function __invoke(): JsonResponse
     {
+        $user = $this->getUser();
+
+        if (!$user instanceof User) {
+            return $this->json(['error' => 'Authentication required.'], Response::HTTP_UNAUTHORIZED);
+        }
+
         try {
-            $this->messageBus->dispatch(new EnrichIgdbMetadataMessage());
+            $this->messageBus->dispatch(new EnrichIgdbMetadataMessage((int) $user->getId()));
 
             return $this->json([], Response::HTTP_ACCEPTED);
         } catch (HandlerFailedException $e) {

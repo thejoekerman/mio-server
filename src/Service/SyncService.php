@@ -32,35 +32,42 @@ class SyncService
         $logsPayload = is_array($payload['logs'] ?? null) ? $payload['logs'] : [];
         $earnedTrophiesPayload = is_array($payload['earnedTrophies'] ?? null) ? $payload['earnedTrophies'] : [];
 
-        foreach ($gamesPayload as $gameData) {
-            if (!is_array($gameData)) {
-                continue;
-            }
+        // Run all three stages in one transaction: a failure in any stage (e.g. a
+        // log referencing an unknown game) rolls back the whole sync, so the client
+        // never gets a partial write. The intermediate flushes make new games (then
+        // logs) visible to the lookups in later stages within the same transaction;
+        // wrapInTransaction performs the final flush and commit.
+        $this->entityManager->wrapInTransaction(
+            function () use ($user, $gamesPayload, $logsPayload, $earnedTrophiesPayload): void {
+                foreach ($gamesPayload as $gameData) {
+                    if (!is_array($gameData)) {
+                        continue;
+                    }
 
-            $this->mergeGame($user, $gameData);
-        }
+                    $this->mergeGame($user, $gameData);
+                }
 
-        $this->entityManager->flush();
+                $this->entityManager->flush();
 
-        foreach ($logsPayload as $logData) {
-            if (!is_array($logData)) {
-                continue;
-            }
+                foreach ($logsPayload as $logData) {
+                    if (!is_array($logData)) {
+                        continue;
+                    }
 
-            $this->mergeLogEntry($user, $logData);
-        }
+                    $this->mergeLogEntry($user, $logData);
+                }
 
-        $this->entityManager->flush();
+                $this->entityManager->flush();
 
-        foreach ($earnedTrophiesPayload as $earnedTrophyData) {
-            if (!is_array($earnedTrophyData)) {
-                continue;
-            }
+                foreach ($earnedTrophiesPayload as $earnedTrophyData) {
+                    if (!is_array($earnedTrophyData)) {
+                        continue;
+                    }
 
-            $this->mergeEarnedTrophy($user, $earnedTrophyData);
-        }
-
-        $this->entityManager->flush();
+                    $this->mergeEarnedTrophy($user, $earnedTrophyData);
+                }
+            },
+        );
 
         return [
             'games' => array_map(

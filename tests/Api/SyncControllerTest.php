@@ -743,4 +743,46 @@ final class SyncControllerTest extends ApiTestCase
             $this->client->getResponse()->getContent() ?: '',
         );
     }
+
+    #[TestDox('The sync endpoint rolls back persisted games when a later log entry is invalid')]
+    public function testSyncEndpointRollsBackGamesWhenALogEntryIsInvalid(): void
+    {
+        $auth = $this->createUserWithSyncToken();
+
+        $this->postJson('/api/sync', [
+            'games' => [
+                [
+                    'id' => 'game-1',
+                    'title' => 'Should not persist',
+                    'status' => 'backlog',
+                    'rating' => null,
+                    'playTimeHours' => null,
+                    'review' => '',
+                    'platform' => 'PC',
+                    'tags' => [],
+                    'finishedAt' => null,
+                    'createdAt' => '2026-04-23T09:00:00Z',
+                    'updatedAt' => '2026-04-23T11:00:00Z',
+                    'deletedAt' => null,
+                ],
+            ],
+            'logs' => [
+                [
+                    'id' => 'log-1',
+                    'gameId' => 'missing-game',
+                    'content' => 'References a game not in this payload.',
+                    'createdAt' => '2026-04-23T10:30:00Z',
+                    'updatedAt' => '2026-04-23T10:30:00Z',
+                    'deletedAt' => null,
+                ],
+            ],
+        ], $auth['plainToken']);
+
+        self::assertSame(400, $this->client->getResponse()->getStatusCode());
+
+        // The rolled-back transaction closes the EntityManager, so query with a fresh one.
+        $freshEntityManager = self::$kernel->getContainer()->get('doctrine')->resetManager();
+
+        self::assertNull($freshEntityManager->getRepository(Game::class)->find('game-1'));
+    }
 }

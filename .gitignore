@@ -10,3 +10,4 @@
 /.phpunit.cache/
 MIO_SERVER_*.md
 config/reference.php
+TODO.md

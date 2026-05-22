@@ -32,35 +32,42 @@ class SyncService
         $logsPayload = is_array($payload['logs'] ?? null) ? $payload['logs'] : [];
         $earnedTrophiesPayload = is_array($payload['earnedTrophies'] ?? null) ? $payload['earnedTrophies'] : [];
 
-        foreach ($gamesPayload as $gameData) {
-            if (!is_array($gameData)) {
-                continue;
-            }
+        // Run all three stages in one transaction: a failure in any stage (e.g. a
+        // log referencing an unknown game) rolls back the whole sync, so the client
+        // never gets a partial write. The intermediate flushes make new games (then
+        // logs) visible to the lookups in later stages within the same transaction;
+        // wrapInTransaction performs the final flush and commit.
+        $this->entityManager->wrapInTransaction(
+            function () use ($user, $gamesPayload, $logsPayload, $earnedTrophiesPayload): void {
+                foreach ($gamesPayload as $gameData) {
+                    if (!is_array($gameData)) {
+                        continue;
+                    }
 
-            $this->mergeGame($user, $gameData);
-        }
+                    $this->mergeGame($user, $gameData);
+                }
 
-        $this->entityManager->flush();
+                $this->entityManager->flush();
 
-        foreach ($logsPayload as $logData) {
-            if (!is_array($logData)) {
-                continue;
-            }
+                foreach ($logsPayload as $logData) {
+                    if (!is_array($logData)) {
+                        continue;
+                    }
 
-            $this->mergeLogEntry($user, $logData);
-        }
+                    $this->mergeLogEntry($user, $logData);
+                }
 
-        $this->entityManager->flush();
+                $this->entityManager->flush();
 
-        foreach ($earnedTrophiesPayload as $earnedTrophyData) {
-            if (!is_array($earnedTrophyData)) {
-                continue;
-            }
+                foreach ($earnedTrophiesPayload as $earnedTrophyData) {
+                    if (!is_array($earnedTrophyData)) {
+                        continue;
+                    }
 
-            $this->mergeEarnedTrophy($user, $earnedTrophyData);
-        }
-
-        $this->entityManager->flush();
+                    $this->mergeEarnedTrophy($user, $earnedTrophyData);
+                }
+            },
+        );
 
         return [
             'games' => array_map(
@@ -142,11 +149,12 @@ class SyncService
                 $data,
                 'releaseYear',
                 'releaseYearUpdatedAt',
+                $incomingUpdatedAt,
                 fn($val) => $this->positiveIntOrNull($val),
-                fn($game) => $game->getReleaseYear(),
                 fn($game) => $game->getReleaseYearUpdatedAt(),
                 fn($game, $val) => $game->setReleaseYear($val),
                 fn($game, $val) => $game->setReleaseYearUpdatedAt($val),
+                protectNullClear: true,
             );
         }
 
@@ -156,8 +164,8 @@ class SyncService
                 $data,
                 'priority',
                 'priorityUpdatedAt',
+                $incomingUpdatedAt,
                 fn($val) => $this->stringOrNull($val),
-                fn($game) => $game->getPriority(),
                 fn($game) => $game->getPriorityUpdatedAt(),
                 fn($game, $val) => $game->setPriority($val),
                 fn($game, $val) => $game->setPriorityUpdatedAt($val),
@@ -170,8 +178,8 @@ class SyncService
                 $data,
                 'developer',
                 'developerUpdatedAt',
+                $incomingUpdatedAt,
                 fn($val) => $this->stringOrNull($val),
-                fn($game) => $game->getDeveloper(),
                 fn($game) => $game->getDeveloperUpdatedAt(),
                 fn($game, $val) => $game->setDeveloper($val),
                 fn($game, $val) => $game->setDeveloperUpdatedAt($val),
@@ -184,8 +192,8 @@ class SyncService
                 $data,
                 'publisher',
                 'publisherUpdatedAt',
+                $incomingUpdatedAt,
                 fn($val) => $this->stringOrNull($val),
-                fn($game) => $game->getPublisher(),
                 fn($game) => $game->getPublisherUpdatedAt(),
                 fn($game, $val) => $game->setPublisher($val),
                 fn($game, $val) => $game->setPublisherUpdatedAt($val),
@@ -302,14 +310,6 @@ class SyncService
 
             if (null !== $gameModes && ([] !== $gameModes || null === $game->getIgdbGameModes())) {
                 $game->setIgdbGameModes($gameModes);
-            }
-        }
-
-        if (array_key_exists('releaseYear', $data)) {
-            $releaseYear = $this->positiveIntOrNull($data['releaseYear']);
-
-            if (null !== $releaseYear || null === $game->getReleaseYear()) {
-                $game->setReleaseYear($releaseYear);
             }
         }
     }
@@ -670,22 +670,30 @@ class SyncService
     }
 
     /**
-     * Merge an enrichable field (developer, publisher, releaseYear, priority) using per-field timestamps.
-     * Accepts incoming value if:
-     * - No stored timestamp (field never enriched), or
-     * - Incoming has a timestamp AND it's >= stored timestamp (timestamp-based conflict resolution)
-     * - Field is explicitly in payload with a value (user action)
+     * Merge an enrichable field (developer, publisher, releaseYear, priority).
+     *
+     * Policy ("client value wins"): a non-null incoming value is always accepted,
+     * and the field is always re-stamped (the incoming per-field timestamp if
+     * present, otherwise the record's updatedAt) so it can't drift with a stale or
+     * missing timestamp.
+     *
+     * Clearing a field to null also wins, EXCEPT when $protectNullClear is true
+     * (only `releaseYear`, the one field IGDB enrichment writes): there a null clear
+     * is accepted only if the field was never written or the incoming per-field
+     * timestamp is at least as new as the stored one, so a stale client can't wipe
+     * server enrichment. The other fields are client-only, so their clears always win.
      */
     private function mergeEnrichableField(
         Game $game,
         array $data,
         string $fieldKey,
         string $timestampKey,
+        \DateTimeImmutable $recordUpdatedAt,
         callable $normalizer,
-        callable $getCurrentValue,
         callable $getStoredTimestamp,
         callable $setSetter,
         callable $setTimestampSetter,
+        bool $protectNullClear = false,
     ): void {
         $incomingValue = $normalizer($data[$fieldKey] ?? null);
         $incomingTimestamp = array_key_exists($timestampKey, $data)
@@ -693,19 +701,17 @@ class SyncService
             : null;
         $storedTimestamp = $getStoredTimestamp($game);
 
-        // Accept the change if:
-        // 1. No stored timestamp (field was never enriched), or
-        // 2. Incoming has a newer timestamp (server enrichment or timestamped user action), or
-        // 3. Incoming value is not null and we have no timestamp (user explicitly set it)
-        if (
-            null === $storedTimestamp
-            || (null !== $incomingTimestamp && $incomingTimestamp >= $storedTimestamp)
-            || null !== $incomingValue
-        ) {
-            $setSetter($game, $incomingValue);
-            if (null !== $incomingTimestamp) {
-                $setTimestampSetter($game, $incomingTimestamp);
-            }
+        $shouldAccept =
+            null !== $incomingValue
+            || !$protectNullClear
+            || null === $storedTimestamp
+            || (null !== $incomingTimestamp && $incomingTimestamp >= $storedTimestamp);
+
+        if (!$shouldAccept) {
+            return;
         }
+
+        $setSetter($game, $incomingValue);
+        $setTimestampSetter($game, $incomingTimestamp ?? $recordUpdatedAt);
     }
 }

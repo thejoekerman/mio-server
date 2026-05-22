@@ -563,6 +563,159 @@ final class SyncControllerTest extends ApiTestCase
         self::assertNull($payload['games'][0]['igdbGameModes']);
     }
 
+    #[TestDox('The sync endpoint lets a client value override a server-enriched release year')]
+    public function testSyncEndpointLetsAClientValueOverrideAServerEnrichedReleaseYear(): void
+    {
+        $auth = $this->createUserWithSyncToken();
+
+        $existingGame = (new Game())
+            ->setId('game-1')
+            ->setUser($auth['user'])
+            ->setTitle('Chrono Trigger')
+            ->setStatus('backlog')
+            ->setReview('')
+            ->setPlatform('SNES')
+            ->setTags([])
+            ->setReleaseYear(1995)
+            ->setReleaseYearUpdatedAt(new DateTimeImmutable('2026-05-10T00:00:00Z'))
+            ->setCreatedAt(new DateTimeImmutable('2026-04-23T09:00:00Z'))
+            ->setUpdatedAt(new DateTimeImmutable('2026-04-23T10:00:00Z'));
+
+        $this->entityManager->persist($existingGame);
+        $this->entityManager->flush();
+
+        $this->postJson('/api/sync', [
+            'games' => [
+                [
+                    'id' => 'game-1',
+                    'title' => 'Chrono Trigger',
+                    'status' => 'backlog',
+                    'rating' => null,
+                    'playTimeHours' => null,
+                    'review' => '',
+                    'platform' => 'SNES',
+                    'tags' => [],
+                    'releaseYear' => 1999,
+                    'finishedAt' => null,
+                    'createdAt' => '2026-04-23T09:00:00Z',
+                    'updatedAt' => '2026-04-23T11:00:00Z',
+                    'deletedAt' => null,
+                ],
+            ],
+            'logs' => [],
+        ], $auth['plainToken']);
+
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+
+        $payload = json_decode($this->client->getResponse()->getContent() ?: '', true, 512, JSON_THROW_ON_ERROR);
+
+        // Client value wins even though the stored per-field timestamp was newer...
+        self::assertSame(1999, $payload['games'][0]['releaseYear']);
+        // ...and the field is re-stamped to the incoming record's updatedAt so it can't drift.
+        self::assertSame('2026-04-23T11:00:00Z', $payload['games'][0]['releaseYearUpdatedAt']);
+    }
+
+    #[TestDox('The sync endpoint lets a client clear a client-only field such as developer')]
+    public function testSyncEndpointLetsAClientClearAClientOnlyField(): void
+    {
+        $auth = $this->createUserWithSyncToken();
+
+        $existingGame = (new Game())
+            ->setId('game-1')
+            ->setUser($auth['user'])
+            ->setTitle('Chrono Trigger')
+            ->setStatus('backlog')
+            ->setReview('')
+            ->setPlatform('SNES')
+            ->setTags([])
+            ->setDeveloper('Squaresoft')
+            ->setDeveloperUpdatedAt(new DateTimeImmutable('2026-05-10T00:00:00Z'))
+            ->setCreatedAt(new DateTimeImmutable('2026-04-23T09:00:00Z'))
+            ->setUpdatedAt(new DateTimeImmutable('2026-04-23T10:00:00Z'));
+
+        $this->entityManager->persist($existingGame);
+        $this->entityManager->flush();
+
+        $this->postJson('/api/sync', [
+            'games' => [
+                [
+                    'id' => 'game-1',
+                    'title' => 'Chrono Trigger',
+                    'status' => 'backlog',
+                    'rating' => null,
+                    'playTimeHours' => null,
+                    'review' => '',
+                    'platform' => 'SNES',
+                    'tags' => [],
+                    'developer' => null,
+                    'finishedAt' => null,
+                    'createdAt' => '2026-04-23T09:00:00Z',
+                    'updatedAt' => '2026-04-23T11:00:00Z',
+                    'deletedAt' => null,
+                ],
+            ],
+            'logs' => [],
+        ], $auth['plainToken']);
+
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+
+        $payload = json_decode($this->client->getResponse()->getContent() ?: '', true, 512, JSON_THROW_ON_ERROR);
+
+        // developer has no server-side writer, so a clear wins outright (not gated).
+        self::assertNull($payload['games'][0]['developer']);
+    }
+
+    #[TestDox('The sync endpoint keeps a server-enriched release year when a stale client clears it without a timestamp')]
+    public function testSyncEndpointKeepsAServerEnrichedReleaseYearWhenAStaleClientClearsItWithoutATimestamp(): void
+    {
+        $auth = $this->createUserWithSyncToken();
+
+        $existingGame = (new Game())
+            ->setId('game-1')
+            ->setUser($auth['user'])
+            ->setTitle('Chrono Trigger')
+            ->setStatus('backlog')
+            ->setReview('')
+            ->setPlatform('SNES')
+            ->setTags([])
+            ->setReleaseYear(1995)
+            ->setReleaseYearUpdatedAt(new DateTimeImmutable('2026-05-10T00:00:00Z'))
+            ->setCreatedAt(new DateTimeImmutable('2026-04-23T09:00:00Z'))
+            ->setUpdatedAt(new DateTimeImmutable('2026-04-23T10:00:00Z'));
+
+        $this->entityManager->persist($existingGame);
+        $this->entityManager->flush();
+
+        $this->postJson('/api/sync', [
+            'games' => [
+                [
+                    'id' => 'game-1',
+                    'title' => 'Chrono Trigger',
+                    'status' => 'backlog',
+                    'rating' => null,
+                    'playTimeHours' => null,
+                    'review' => '',
+                    'platform' => 'SNES',
+                    'tags' => [],
+                    'releaseYear' => null,
+                    'finishedAt' => null,
+                    'createdAt' => '2026-04-23T09:00:00Z',
+                    'updatedAt' => '2026-04-23T11:00:00Z',
+                    'deletedAt' => null,
+                ],
+            ],
+            'logs' => [],
+        ], $auth['plainToken']);
+
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+
+        $payload = json_decode($this->client->getResponse()->getContent() ?: '', true, 512, JSON_THROW_ON_ERROR);
+
+        // Clearing to null stays timestamp-gated: a stale client without a per-field
+        // timestamp cannot wipe the server-enriched value.
+        self::assertSame(1995, $payload['games'][0]['releaseYear']);
+    }
+
     #[TestDox('The sync endpoint rejects log entries that reference an unknown game')]
     public function testSyncEndpointRejectsLogEntriesThatReferenceAnUnknownGame(): void
     {
@@ -589,5 +742,47 @@ final class SyncControllerTest extends ApiTestCase
             ], JSON_THROW_ON_ERROR),
             $this->client->getResponse()->getContent() ?: '',
         );
+    }
+
+    #[TestDox('The sync endpoint rolls back persisted games when a later log entry is invalid')]
+    public function testSyncEndpointRollsBackGamesWhenALogEntryIsInvalid(): void
+    {
+        $auth = $this->createUserWithSyncToken();
+
+        $this->postJson('/api/sync', [
+            'games' => [
+                [
+                    'id' => 'game-1',
+                    'title' => 'Should not persist',
+                    'status' => 'backlog',
+                    'rating' => null,
+                    'playTimeHours' => null,
+                    'review' => '',
+                    'platform' => 'PC',
+                    'tags' => [],
+                    'finishedAt' => null,
+                    'createdAt' => '2026-04-23T09:00:00Z',
+                    'updatedAt' => '2026-04-23T11:00:00Z',
+                    'deletedAt' => null,
+                ],
+            ],
+            'logs' => [
+                [
+                    'id' => 'log-1',
+                    'gameId' => 'missing-game',
+                    'content' => 'References a game not in this payload.',
+                    'createdAt' => '2026-04-23T10:30:00Z',
+                    'updatedAt' => '2026-04-23T10:30:00Z',
+                    'deletedAt' => null,
+                ],
+            ],
+        ], $auth['plainToken']);
+
+        self::assertSame(400, $this->client->getResponse()->getStatusCode());
+
+        // The rolled-back transaction closes the EntityManager, so query with a fresh one.
+        $freshEntityManager = self::$kernel->getContainer()->get('doctrine')->resetManager();
+
+        self::assertNull($freshEntityManager->getRepository(Game::class)->find('game-1'));
     }
 }

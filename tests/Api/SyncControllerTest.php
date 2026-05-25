@@ -4,10 +4,10 @@ namespace App\Tests\Api;
 
 use App\Entity\Game;
 use App\Entity\EarnedTrophy;
-use App\Entity\LogEntry;
 use DateTimeImmutable;
 use PHPUnit\Framework\Attributes\TestDox;
 
+#[TestDox('SyncController Test')]
 final class SyncControllerTest extends ApiTestCase
 {
     #[TestDox('The sync endpoint creates games and logs for the authenticated user')]

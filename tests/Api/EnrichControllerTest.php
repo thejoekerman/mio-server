@@ -4,6 +4,7 @@ namespace App\Tests\Api;
 
 use PHPUnit\Framework\Attributes\TestDox;
 
+#[TestDox('EnrichController Test')]
 final class EnrichControllerTest extends ApiTestCase
 {
     protected function setUp(): void

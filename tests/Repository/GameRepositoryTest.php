@@ -8,6 +8,7 @@ use App\Repository\GameRepository;
 use App\Tests\Api\ApiTestCase;
 use PHPUnit\Framework\Attributes\TestDox;
 
+#[TestDox('GameRepository Test')]
 final class GameRepositoryTest extends ApiTestCase
 {
     #[TestDox('findMissingIgdbMetadataForUser returns only the given user\'s games that still need metadata')]

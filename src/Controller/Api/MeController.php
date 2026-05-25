@@ -23,7 +23,6 @@ class MeController extends AbstractController
         }
 
         $reviewDraft = $user->getAiUsage() && $aiFeatureAvailability->reviewDraftAvailable();
-        $playNext = $user->getAiUsage() && $aiFeatureAvailability->playNextAvailable();
 
         return $this->json([
             'user' => [
@@ -33,7 +32,6 @@ class MeController extends AbstractController
             ],
             'capabilities' => [
                 'reviewDraft' => $reviewDraft,
-                'playNext' => $playNext,
                 'igdbMetadata' => $igdbClient->isConfigured(),
             ],
         ]);

@@ -62,13 +62,44 @@ migrate:
 migrations-migrate: migrate
 
 .PHONY: test
-## Run PHPUnit tests
+## Run all tests and checks
 test:
-	docker compose exec backend php bin/phpunit --testdox
+	@printf "\n\033[1;35m=== Phpcs ===\033[0m\n"
+	@docker compose exec backend composer cs
+
+	@printf "\n\033[1;36m=== Phpstan ===\033[0m\n"
+	@docker compose exec backend composer phpstan
+
+	@printf "\n\033[1;33m=== Phpunit ===\033[0m\n"
+	@docker compose exec backend php bin/phpunit --testdox
+
+	@printf "\n\033[1;32m=== TODO Check ===\033[0m\n"
+	$(MAKE) todo
 
 .PHONY: phpunit
-## Alias for test
-phpunit: test
+## Run PHPUnit tests
+phpunit:
+	docker compose exec backend php bin/phpunit --testdox
+
+.PHONY: cs
+## Check coding standard (PSR-12)
+cs:
+	docker compose exec backend composer cs
+
+.PHONY: cs-fix
+## Auto-fix coding standard violations
+cs-fix:
+	docker compose exec backend composer cs:fix
+
+.PHONY: phpstan
+## Run PHPStan static analysis
+phpstan:
+	docker compose exec backend composer phpstan
+
+.PHONY: qa
+## Run all quality gates (coding standard + static analysis)
+qa:
+	docker compose exec backend composer qa
 
 .PHONY: sync-token
 ## Create a sync token

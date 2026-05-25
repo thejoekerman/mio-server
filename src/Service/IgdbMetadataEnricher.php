@@ -43,6 +43,7 @@ final readonly class IgdbMetadataEnricher
         ) {
             $metadata = $this->igdbClient->fetchGame($igdbId);
 
+            $year = $metadata->firstReleaseDate ? (int) $metadata->firstReleaseDate->format('Y') : null;
             if (null !== $metadata) {
                 $now = new \DateTimeImmutable();
                 $game
@@ -52,7 +53,7 @@ final readonly class IgdbMetadataEnricher
                     ->setIgdbPublishers($metadata->publishers)
                     ->setIgdbThemes($metadata->themes)
                     ->setIgdbGameModes($metadata->gameModes)
-                    ->setReleaseYear($metadata->firstReleaseDate ? (int) $metadata->firstReleaseDate->format('Y') : null)
+                    ->setReleaseYear($year)
                     ->setReleaseYearUpdatedAt($now);
             }
         }

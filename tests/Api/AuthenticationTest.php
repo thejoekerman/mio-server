@@ -4,6 +4,7 @@ namespace App\Tests\Api;
 
 use PHPUnit\Framework\Attributes\TestDox;
 
+#[TestDox('Authentication Test')]
 final class AuthenticationTest extends ApiTestCase
 {
     #[TestDox('The me endpoint rejects requests without a sync token')]
@@ -32,7 +33,6 @@ final class AuthenticationTest extends ApiTestCase
         self::assertSame('you@example.com', $payload['user']['email']);
         self::assertSame('you@example.com', $payload['user']['displayName']);
         self::assertFalse($payload['capabilities']['reviewDraft']);
-        self::assertFalse($payload['capabilities']['playNext']);
         self::assertFalse($payload['capabilities']['igdbMetadata']);
         self::assertArrayNotHasKey('gameDiscovery', $payload['capabilities']);
     }

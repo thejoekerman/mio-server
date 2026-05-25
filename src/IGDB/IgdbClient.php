@@ -57,7 +57,7 @@ final class IgdbClient
                     'Client-ID' => trim((string) $this->clientId),
                 ],
                 'body' => sprintf(
-                    'fields name,url,cover.image_id,first_release_date,involved_companies.developer,involved_companies.publisher,involved_companies.company.name,themes.name,game_modes.name; where id = %d; limit 1;',
+                    'fields name,url,cover.image_id,first_release_date,involved_companies.developer,involved_companies.publisher,involved_companies.company.name,themes.name,game_modes.name; where id = %d; limit 1;', // phpcs:ignore Generic.Files.LineLength
                     $igdbId,
                 ),
             ]);
@@ -247,7 +247,7 @@ final class IgdbClient
 
             return null;
         } catch (ExceptionInterface $exception) {
-            $this->lastAuthenticationError = sprintf('Twitch token response could not be read: %s', $exception->getMessage());
+            $this->lastAuthenticationError = sprintf('Twitch token response could not be read: %s', $exception->getMessage()); // phpcs:ignore Generic.Files.LineLength
 
             return null;
         }
@@ -265,7 +265,7 @@ final class IgdbClient
         $payload = json_decode($body, true);
 
         if (!is_array($payload)) {
-            $this->lastAuthenticationError = sprintf('Twitch token endpoint returned invalid JSON: %s', json_last_error_msg());
+            $this->lastAuthenticationError = sprintf('Twitch token endpoint returned invalid JSON: %s', json_last_error_msg()); // phpcs:ignore Generic.Files.LineLength
 
             return null;
         }
@@ -297,6 +297,6 @@ final class IgdbClient
             return 'empty response body';
         }
 
-        return mb_strlen($normalized) > 300 ? mb_substr($normalized, 0, 300).'...' : $normalized;
+        return mb_strlen($normalized) > 300 ? mb_substr($normalized, 0, 300) . '...' : $normalized;
     }
 }

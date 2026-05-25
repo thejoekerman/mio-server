@@ -8,6 +8,7 @@ use App\Repository\GameRepository;
 use App\Tests\Api\ApiTestCase;
 use PHPUnit\Framework\Attributes\TestDox;
 
+#[TestDox('GameRepository Test')]
 final class GameRepositoryTest extends ApiTestCase
 {
     #[TestDox('findMissingIgdbMetadataForUser returns only the given user\'s games that still need metadata')]
@@ -63,13 +64,13 @@ final class GameRepositoryTest extends ApiTestCase
         $game = (new Game())
             ->setId($id)
             ->setUser($user)
-            ->setTitle('Game '.$id)
+            ->setTitle('Game ' . $id)
             ->setIgdbId($igdbId);
 
         if ($complete) {
             $game
-                ->setCoverUrl('https://images.example/'.$id)
-                ->setIgdbUrl('https://igdb.example/'.$id)
+                ->setCoverUrl('https://images.example/' . $id)
+                ->setIgdbUrl('https://igdb.example/' . $id)
                 ->setIgdbTtbCount(3)
                 ->setIgdbDevelopers(['Dev'])
                 ->setIgdbPublishers(['Pub'])

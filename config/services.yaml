@@ -55,11 +55,6 @@ services:
             $appEnv: '%kernel.environment%'
             $configuredProvider: '%app.ai.provider%'
 
-    App\AI\PlayNextRecommendationService:
-        arguments:
-            $appEnv: '%kernel.environment%'
-            $configuredProvider: '%app.ai.provider%'
-
     App\IGDB\IgdbClient:
         arguments:
             $clientId: '%app.igdb.client_id%'

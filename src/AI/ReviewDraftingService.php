@@ -62,8 +62,8 @@ final readonly class ReviewDraftingService
             sprintf('- Platform: %s', $this->valueOrFallback($game->getPlatform(), 'unspecified')),
             sprintf('- Tags: %s', $game->getTags() !== [] ? implode(', ', $game->getTags()) : 'none'),
             sprintf('- Rating: %s', null !== $game->getRating() ? (string) $game->getRating() : 'none'),
-            sprintf('- Play time hours: %s', null !== $game->getPlayTimeHours() ? $game->getPlayTimeHours() : 'unknown'),
-            sprintf('- Finished on: %s', null !== $game->getFinishedAt() ? $game->getFinishedAt()->format('Y-m-d') : 'not finished / unknown'),
+            sprintf('- Play time hours: %s', null !== $game->getPlayTimeHours() ? $game->getPlayTimeHours() : 'unknown'), // phpcs:ignore Generic.Files.LineLength
+            sprintf('- Finished on: %s', null !== $game->getFinishedAt() ? $game->getFinishedAt()->format('Y-m-d') : 'not finished / unknown'), // phpcs:ignore Generic.Files.LineLength
         ];
 
         $existingReview = trim($game->getReview());

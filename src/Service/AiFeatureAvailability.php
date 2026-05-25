@@ -17,11 +17,6 @@ final readonly class AiFeatureAvailability
         return $this->providerAvailable($this->resolveProvider());
     }
 
-    public function playNextAvailable(): bool
-    {
-        return $this->providerAvailable($this->resolveProvider());
-    }
-
     public function resolveProvider(): string
     {
         $provider = trim((string) $this->aiProvider);

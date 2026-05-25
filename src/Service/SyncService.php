@@ -452,7 +452,7 @@ class SyncService
             'context' => $earnedTrophy->getContext(),
             'createdAt' => $this->formatDateTime($earnedTrophy->getCreatedAt()),
             'updatedAt' => $this->formatDateTime($earnedTrophy->getUpdatedAt()),
-            'deletedAt' => null !== $earnedTrophy->getDeletedAt() ? $this->formatDateTime($earnedTrophy->getDeletedAt()) : null,
+            'deletedAt' => null !== $earnedTrophy->getDeletedAt() ? $this->formatDateTime($earnedTrophy->getDeletedAt()) : null, // phpcs:ignore Generic.Files.LineLength
         ];
     }
 

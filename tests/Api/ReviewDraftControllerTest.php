@@ -4,6 +4,7 @@ namespace App\Tests\Api;
 
 use PHPUnit\Framework\Attributes\TestDox;
 
+#[TestDox('ReviewDraftController Test')]
 final class ReviewDraftControllerTest extends ApiTestCase
 {
     protected function setUp(): void

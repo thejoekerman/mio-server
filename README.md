@@ -1,6 +1,6 @@
-<img src="public/miolog-chibi.png" alt="MioLog" width="128" />
-
 # Mio Server
+
+<img src="docs/assets/miolog-chibi.png" alt="MioLog" width="128" />
 
 `mio-server` is the self-hostable backend for [MioLog](https://miolog.net/).
 

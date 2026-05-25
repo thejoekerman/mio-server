@@ -46,3 +46,29 @@ jobs:
       - name: Stop Docker services
         if: always()
         run: docker compose down -v --remove-orphans
+
+  quality:
+    name: Static analysis & coding standard
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Build backend image
+        run: docker compose build backend
+
+      # Static analysis needs only vendor/, not the DB or a warmed cache.
+      - name: Install Composer dependencies
+        run: docker compose run --rm --no-deps backend composer install --prefer-dist --no-interaction --no-progress --no-scripts
+
+      - name: Coding standard (PHPCS, PSR-12)
+        run: docker compose run --rm --no-deps backend composer cs
+
+      - name: Static analysis (PHPStan)
+        run: docker compose run --rm --no-deps backend composer phpstan
+
+      - name: Stop Docker services
+        if: always()
+        run: docker compose down -v --remove-orphans

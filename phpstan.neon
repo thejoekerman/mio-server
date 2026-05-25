@@ -1,0 +1,10 @@
+includes:
+    # Symfony-aware type extensions (controllers, services, requests) for fewer false positives.
+    - vendor/phpstan/phpstan-symfony/extension.neon
+    # Doctrine-aware extension: understands entity id assignment, repository return types, etc.
+    - vendor/phpstan/phpstan-doctrine/extension.neon
+
+parameters:
+    level: 5
+    paths:
+        - src

@@ -64,13 +64,13 @@ final class GameRepositoryTest extends ApiTestCase
         $game = (new Game())
             ->setId($id)
             ->setUser($user)
-            ->setTitle('Game '.$id)
+            ->setTitle('Game ' . $id)
             ->setIgdbId($igdbId);
 
         if ($complete) {
             $game
-                ->setCoverUrl('https://images.example/'.$id)
-                ->setIgdbUrl('https://igdb.example/'.$id)
+                ->setCoverUrl('https://images.example/' . $id)
+                ->setIgdbUrl('https://igdb.example/' . $id)
                 ->setIgdbTtbCount(3)
                 ->setIgdbDevelopers(['Dev'])
                 ->setIgdbPublishers(['Pub'])

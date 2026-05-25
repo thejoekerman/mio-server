@@ -80,7 +80,7 @@ final class EnrichIgdbMetadataCommand extends Command
                     ++$enriched;
                     $io->writeln(sprintf('Enriched %s (%s)', $game->getTitle(), $game->getIgdbId()));
                 } else {
-                    $io->warning(sprintf('No IGDB metadata changes for %s (%s).', $game->getTitle(), $game->getIgdbId()));
+                    $io->warning(sprintf('No IGDB metadata changes for %s (%s).', $game->getTitle(), $game->getIgdbId())); // phpcs:ignore Generic.Files.LineLength
                 }
             }
 

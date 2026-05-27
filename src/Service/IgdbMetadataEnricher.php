@@ -32,6 +32,8 @@ final readonly class IgdbMetadataEnricher
             return;
         }
 
+        $didWrite = false;
+
         if (
             null === $game->getCoverUrl()
             || null === $game->getIgdbUrl()
@@ -43,8 +45,8 @@ final readonly class IgdbMetadataEnricher
         ) {
             $metadata = $this->igdbClient->fetchGame($igdbId);
 
-            $year = $metadata->firstReleaseDate ? (int) $metadata->firstReleaseDate->format('Y') : null;
             if (null !== $metadata) {
+                $year = $metadata->firstReleaseDate ? (int) $metadata->firstReleaseDate->format('Y') : null;
                 $now = new \DateTimeImmutable();
                 $game
                     ->setIgdbUrl($metadata->url)
@@ -55,6 +57,7 @@ final readonly class IgdbMetadataEnricher
                     ->setIgdbGameModes($metadata->gameModes)
                     ->setReleaseYear($year)
                     ->setReleaseYearUpdatedAt($now);
+                $didWrite = true;
             }
         }
 
@@ -68,7 +71,12 @@ final readonly class IgdbMetadataEnricher
                     ->setIgdbTtbCompletelySeconds($timeToBeat->completelySeconds)
                     ->setIgdbTtbCount($timeToBeat->count)
                     ->setIgdbTtbUpdatedAt($timeToBeat->updatedAt);
+                $didWrite = true;
             }
+        }
+
+        if ($didWrite) {
+            $game->setUpdatedAt(new \DateTimeImmutable());
         }
     }
 }

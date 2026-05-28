@@ -1,0 +1,15 @@
+info:
+  name: Me
+  type: http
+  seq: 1
+
+http:
+  method: GET
+  url: "{{host}}/api/me"
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

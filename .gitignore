@@ -11,3 +11,5 @@
 MIO_SERVER_*.md
 config/reference.php
 TODO.md
+_bruno/MioLog/environments/*
+!_bruno/MioLog/environments/LOCAL.yml

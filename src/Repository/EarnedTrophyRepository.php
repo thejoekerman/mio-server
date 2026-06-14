@@ -25,7 +25,22 @@ class EarnedTrophyRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('earned_trophy')
             ->andWhere('earned_trophy.user = :user')
             ->setParameter('user', $user)
-            ->orderBy('earned_trophy.updatedAt', 'DESC')
+            ->orderBy('earned_trophy.revision', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * @return list<EarnedTrophy>
+     */
+    public function findChangedForUser(User $user, int $revision): array
+    {
+        return $this->createQueryBuilder('earned_trophy')
+            ->andWhere('earned_trophy.user = :user')
+            ->andWhere('earned_trophy.revision > :revision')
+            ->setParameter('user', $user)
+            ->setParameter('revision', $revision)
+            ->orderBy('earned_trophy.revision', 'ASC')
             ->getQuery()
             ->getResult();
     }

@@ -7,7 +7,6 @@
 It provides optional server-side features for the official [MioLog PWA](https://app.miolog.net/):
 
 - sync for local-first data
-- cached IGDB metadata enrichment
 - optional AI helpers
 
 The official [MioLog PWA](https://app.miolog.net/) is currently maintained as the reference client. This repository contains the backend/server project only.
@@ -41,14 +40,7 @@ http://localhost:8000/
 
 ## Optional Integrations
 
-Sync works without IGDB or AI credentials.
-
-To enable IGDB metadata enrichment, configure:
-
-```dotenv
-IGDB_CLIENT_ID=
-IGDB_CLIENT_SECRET=
-```
+Sync works without AI credentials.
 
 To enable AI helpers, configure the provider-specific keys you want to use:
 
@@ -69,7 +61,6 @@ AI endpoints accept an optional JSON body such as `{"language":"de"}` or
 make shell
 make console command="debug:router"
 make sync-token command="you@example.com iPhone"
-docker compose exec backend php bin/console app:igdb:enrich --limit=50
 ```
 
 ## Docker Images
@@ -128,12 +119,10 @@ MYSQL_DATABASE=miolog
 MYSQL_USER=miolog
 MYSQL_PASSWORD=replace-with-an-app-password
 
-# Optional AI/enrichment settings
+# Optional AI settings
 AI_PROVIDER=
 GEMINI_API_KEY=
 LMSTUDIO_HOST_URL=
-IGDB_CLIENT_ID=
-IGDB_CLIENT_SECRET=
 
 # mio-server images
 MIOLOG_BACKEND_IMAGE=ghcr.io/thejoekerman/mio-server-backend:latest
@@ -201,8 +190,6 @@ services:
       AI_PROVIDER: ${AI_PROVIDER:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       LMSTUDIO_HOST_URL: ${LMSTUDIO_HOST_URL:-}
-      IGDB_CLIENT_ID: ${IGDB_CLIENT_ID:-}
-      IGDB_CLIENT_SECRET: ${IGDB_CLIENT_SECRET:-}
     depends_on:
       db:
         condition: service_healthy
@@ -278,15 +265,6 @@ docker compose -f compose.yml exec -T backend php bin/console app:sync-token:cre
 
 Then open the hosted [MioLog PWA](https://app.miolog.net/) at `https://app.miolog.net`, set the sync API
 base URL to your API domain, and paste the token.
-
-### Optional IGDB Enrichment Cron
-
-If `IGDB_CLIENT_ID` and `IGDB_CLIENT_SECRET` are configured, run enrichment on a
-schedule. For example:
-
-```cron
-23 3 * * * cd /opt/miolog && /usr/bin/docker compose -f compose.yml exec -T backend php bin/console app:igdb:enrich --limit=50 >> /opt/miolog/igdb-enrich.log 2>&1
-```
 
 ## License
 

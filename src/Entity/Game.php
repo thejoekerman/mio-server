@@ -22,83 +22,38 @@ class Game
     #[ORM\Column(length: 255)]
     private string $title = '';
 
-    #[ORM\Column(length: 32)]
-    private string $status = 'backlog';
-
     #[ORM\Column(nullable: true)]
-    private ?int $rating = null;
+    private ?int $releaseYear = null;
 
-    #[ORM\Column(type: Types::DECIMAL, precision: 6, scale: 1, nullable: true)]
-    private ?string $playTimeHours = null;
+    #[ORM\Column(type: Types::JSON)]
+    private array $developers = [];
 
-    #[ORM\Column(type: Types::TEXT)]
-    private string $review = '';
+    #[ORM\Column(type: Types::JSON)]
+    private array $publishers = [];
 
-    #[ORM\Column(length: 120)]
-    private string $platform = '';
+    #[ORM\Column(type: Types::JSON)]
+    private array $genres = [];
 
-    #[ORM\Column(length: 16, nullable: true)]
-    private ?string $ownershipType = null;
+    #[ORM\Column(type: Types::JSON)]
+    private array $themes = [];
+
+    #[ORM\Column(type: Types::JSON)]
+    private array $gameModes = [];
 
     #[ORM\Column(type: Types::JSON)]
     private array $tags = [];
 
-    #[ORM\Column(nullable: true)]
-    private ?int $igdbId = null;
+    #[ORM\Column(type: Types::JSON, nullable: true)]
+    private ?array $cover = null;
 
-    #[ORM\Column(length: 255, nullable: true)]
-    private ?string $igdbUrl = null;
-
-    #[ORM\Column(length: 255, nullable: true)]
-    private ?string $coverUrl = null;
-
-    #[ORM\Column(nullable: true)]
-    private ?int $igdbTtbHastilySeconds = null;
-
-    #[ORM\Column(nullable: true)]
-    private ?int $igdbTtbNormallySeconds = null;
-
-    #[ORM\Column(nullable: true)]
-    private ?int $igdbTtbCompletelySeconds = null;
-
-    #[ORM\Column(nullable: true)]
-    private ?int $igdbTtbCount = null;
-
-    #[ORM\Column(nullable: true)]
-    private ?\DateTimeImmutable $igdbTtbUpdatedAt = null;
+    #[ORM\Column(type: Types::JSON)]
+    private array $externalReferences = [];
 
     #[ORM\Column(type: Types::JSON, nullable: true)]
-    private ?array $igdbDevelopers = null;
-
-    #[ORM\Column(type: Types::JSON, nullable: true)]
-    private ?array $igdbPublishers = null;
-
-    #[ORM\Column(type: Types::JSON, nullable: true)]
-    private ?array $igdbThemes = null;
-
-    #[ORM\Column(type: Types::JSON, nullable: true)]
-    private ?array $igdbGameModes = null;
+    private ?array $playtimeEstimates = null;
 
     #[ORM\Column(nullable: true)]
-    private ?int $releaseYear = null;
-
-    #[ORM\Column(length: 32, nullable: true)]
-    private ?string $priority = null;
-
-    #[ORM\Column(length: 255, nullable: true)]
-    private ?string $developer = null;
-
-    #[ORM\Column(length: 255, nullable: true)]
-    private ?string $publisher = null;
-
-    #[ORM\Column(type: Types::DATE_IMMUTABLE, nullable: true)]
-    private ?\DateTimeImmutable $finishedAt = null;
-
-    #[ORM\Column(type: Types::DATE_IMMUTABLE, nullable: true)]
-    private ?\DateTimeImmutable $pausedAt = null;
-
-    #[ORM\Column(type: Types::DATE_IMMUTABLE, nullable: true)]
-    private ?\DateTimeImmutable $nudgeAt = null;
+    private ?\DateTimeImmutable $metadataReviewedAt = null;
 
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
@@ -107,525 +62,195 @@ class Game
     private \DateTimeImmutable $updatedAt;
 
     #[ORM\Column(nullable: true)]
-    private ?\DateTimeImmutable $developerUpdatedAt = null;
-
-    #[ORM\Column(nullable: true)]
-    private ?\DateTimeImmutable $publisherUpdatedAt = null;
-
-    #[ORM\Column(nullable: true)]
-    private ?\DateTimeImmutable $releaseYearUpdatedAt = null;
-
-    #[ORM\Column(nullable: true)]
-    private ?\DateTimeImmutable $priorityUpdatedAt = null;
-
-    #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $deletedAt = null;
 
-    /**
-     * @var Collection<int, LogEntry>
-     */
-    #[ORM\OneToMany(mappedBy: 'game', targetEntity: LogEntry::class, cascade: ['persist'])]
-    private Collection $logEntries;
+    #[ORM\Column(options: ['unsigned' => true])]
+    private int $revision = 0;
+
+    /** @var Collection<int, Journey> */
+    #[ORM\OneToMany(mappedBy: 'game', targetEntity: Journey::class, cascade: ['persist'])]
+    private Collection $journeys;
 
     public function __construct()
     {
-        $this->logEntries = new ArrayCollection();
+        $this->journeys = new ArrayCollection();
         $this->createdAt = new \DateTimeImmutable();
         $this->updatedAt = new \DateTimeImmutable();
-        $this->developerUpdatedAt = null;
-        $this->publisherUpdatedAt = null;
-        $this->releaseYearUpdatedAt = null;
-        $this->priorityUpdatedAt = null;
     }
 
     public function getId(): string
     {
         return $this->id;
     }
-
     public function setId(string $id): static
     {
         $this->id = $id;
-
         return $this;
     }
-
     public function getUser(): ?User
     {
         return $this->user;
     }
-
     public function setUser(?User $user): static
     {
         $this->user = $user;
-
         return $this;
     }
-
     public function getTitle(): string
     {
         return $this->title;
     }
-
     public function setTitle(string $title): static
     {
         $this->title = $title;
-
         return $this;
     }
-
-    public function getStatus(): string
-    {
-        return $this->status;
-    }
-
-    public function setStatus(string $status): static
-    {
-        $this->status = $status;
-
-        return $this;
-    }
-
-    public function getRating(): ?int
-    {
-        return $this->rating;
-    }
-
-    public function setRating(?int $rating): static
-    {
-        $this->rating = $rating;
-
-        return $this;
-    }
-
-    public function getPlayTimeHours(): ?string
-    {
-        return $this->playTimeHours;
-    }
-
-    public function setPlayTimeHours(?string $playTimeHours): static
-    {
-        $this->playTimeHours = $playTimeHours;
-
-        return $this;
-    }
-
-    public function getReview(): string
-    {
-        return $this->review;
-    }
-
-    public function setReview(string $review): static
-    {
-        $this->review = $review;
-
-        return $this;
-    }
-
-    public function getPlatform(): string
-    {
-        return $this->platform;
-    }
-
-    public function setPlatform(string $platform): static
-    {
-        $this->platform = $platform;
-
-        return $this;
-    }
-
-    public function getOwnershipType(): ?string
-    {
-        return $this->ownershipType;
-    }
-
-    public function setOwnershipType(?string $ownershipType): static
-    {
-        $this->ownershipType = match ($ownershipType) {
-            'digital', 'physical', 'both' => $ownershipType,
-            default => null,
-        };
-
-        return $this;
-    }
-
-    public function getTags(): array
-    {
-        return $this->tags;
-    }
-
-    public function setTags(array $tags): static
-    {
-        $this->tags = array_values($tags);
-
-        return $this;
-    }
-
-    public function getIgdbId(): ?int
-    {
-        return $this->igdbId;
-    }
-
-    public function setIgdbId(?int $igdbId): static
-    {
-        $this->igdbId = $igdbId;
-
-        return $this;
-    }
-
-    public function getIgdbUrl(): ?string
-    {
-        return $this->igdbUrl;
-    }
-
-    public function setIgdbUrl(?string $igdbUrl): static
-    {
-        $this->igdbUrl = $igdbUrl;
-
-        return $this;
-    }
-
-    public function getCoverUrl(): ?string
-    {
-        return $this->coverUrl;
-    }
-
-    public function setCoverUrl(?string $coverUrl): static
-    {
-        $this->coverUrl = $coverUrl;
-
-        return $this;
-    }
-
-    public function getIgdbTtbHastilySeconds(): ?int
-    {
-        return $this->igdbTtbHastilySeconds;
-    }
-
-    public function setIgdbTtbHastilySeconds(?int $igdbTtbHastilySeconds): static
-    {
-        $this->igdbTtbHastilySeconds = $igdbTtbHastilySeconds;
-
-        return $this;
-    }
-
-    public function getIgdbTtbNormallySeconds(): ?int
-    {
-        return $this->igdbTtbNormallySeconds;
-    }
-
-    public function setIgdbTtbNormallySeconds(?int $igdbTtbNormallySeconds): static
-    {
-        $this->igdbTtbNormallySeconds = $igdbTtbNormallySeconds;
-
-        return $this;
-    }
-
-    public function getIgdbTtbCompletelySeconds(): ?int
-    {
-        return $this->igdbTtbCompletelySeconds;
-    }
-
-    public function setIgdbTtbCompletelySeconds(?int $igdbTtbCompletelySeconds): static
-    {
-        $this->igdbTtbCompletelySeconds = $igdbTtbCompletelySeconds;
-
-        return $this;
-    }
-
-    public function getIgdbTtbCount(): ?int
-    {
-        return $this->igdbTtbCount;
-    }
-
-    public function setIgdbTtbCount(?int $igdbTtbCount): static
-    {
-        $this->igdbTtbCount = $igdbTtbCount;
-
-        return $this;
-    }
-
-    public function getIgdbTtbUpdatedAt(): ?\DateTimeImmutable
-    {
-        return $this->igdbTtbUpdatedAt;
-    }
-
-    public function setIgdbTtbUpdatedAt(?\DateTimeImmutable $igdbTtbUpdatedAt): static
-    {
-        $this->igdbTtbUpdatedAt = $igdbTtbUpdatedAt;
-
-        return $this;
-    }
-
-    public function getIgdbDevelopers(): ?array
-    {
-        return $this->igdbDevelopers;
-    }
-
-    public function setIgdbDevelopers(?array $igdbDevelopers): static
-    {
-        $this->igdbDevelopers = null === $igdbDevelopers ? null : $this->normalizeStringList($igdbDevelopers);
-
-        return $this;
-    }
-
-    public function getIgdbPublishers(): ?array
-    {
-        return $this->igdbPublishers;
-    }
-
-    public function setIgdbPublishers(?array $igdbPublishers): static
-    {
-        $this->igdbPublishers = null === $igdbPublishers ? null : $this->normalizeStringList($igdbPublishers);
-
-        return $this;
-    }
-
-    public function getIgdbThemes(): ?array
-    {
-        return $this->igdbThemes;
-    }
-
-    public function setIgdbThemes(?array $igdbThemes): static
-    {
-        $this->igdbThemes = null === $igdbThemes ? null : $this->normalizeStringList($igdbThemes);
-
-        return $this;
-    }
-
-    public function getIgdbGameModes(): ?array
-    {
-        return $this->igdbGameModes;
-    }
-
-    public function setIgdbGameModes(?array $igdbGameModes): static
-    {
-        $this->igdbGameModes = null === $igdbGameModes ? null : $this->normalizeStringList($igdbGameModes);
-
-        return $this;
-    }
-
     public function getReleaseYear(): ?int
     {
         return $this->releaseYear;
     }
-
     public function setReleaseYear(?int $releaseYear): static
     {
-        if (null !== $releaseYear && ($releaseYear < 1970 || $releaseYear > ((int) date('Y')) + 1)) {
-            $releaseYear = null;
-        }
-
         $this->releaseYear = $releaseYear;
-
         return $this;
     }
-
-    public function getPriority(): ?string
+    public function getDevelopers(): array
     {
-        return $this->priority;
+        return $this->developers;
     }
-
-    public function setPriority(?string $priority): static
+    public function setDevelopers(array $developers): static
     {
-        $priority = null !== $priority ? trim($priority) : null;
-
-        $this->priority = in_array($priority, ['high-interest', 'low-pressure', 'save-for-later'], true)
-            ? $priority
-            : null;
-
+        $this->developers = $this->strings($developers);
         return $this;
     }
-
-    public function getDeveloper(): ?string
+    public function getPublishers(): array
     {
-        return $this->developer;
+        return $this->publishers;
     }
-
-    public function setDeveloper(?string $developer): static
+    public function setPublishers(array $publishers): static
     {
-        $developer = null !== $developer ? trim($developer) : null;
-        $this->developer = '' !== $developer ? $developer : null;
-
+        $this->publishers = $this->strings($publishers);
         return $this;
     }
-
-    public function getPublisher(): ?string
+    public function getGenres(): array
     {
-        return $this->publisher;
+        return $this->genres;
     }
-
-    public function setPublisher(?string $publisher): static
+    public function setGenres(array $genres): static
     {
-        $publisher = null !== $publisher ? trim($publisher) : null;
-        $this->publisher = '' !== $publisher ? $publisher : null;
-
+        $this->genres = $this->strings($genres);
         return $this;
     }
-
-    public function getFinishedAt(): ?\DateTimeImmutable
+    public function getThemes(): array
     {
-        return $this->finishedAt;
+        return $this->themes;
     }
-
-    public function setFinishedAt(?\DateTimeImmutable $finishedAt): static
+    public function setThemes(array $themes): static
     {
-        $this->finishedAt = $finishedAt;
-
+        $this->themes = $this->strings($themes);
         return $this;
     }
-
-    public function getPausedAt(): ?\DateTimeImmutable
+    public function getGameModes(): array
     {
-        return $this->pausedAt;
+        return $this->gameModes;
     }
-
-    public function setPausedAt(?\DateTimeImmutable $pausedAt): static
+    public function setGameModes(array $gameModes): static
     {
-        $this->pausedAt = $pausedAt;
-
+        $this->gameModes = $this->strings($gameModes);
         return $this;
     }
-
-    public function getNudgeAt(): ?\DateTimeImmutable
+    public function getTags(): array
     {
-        return $this->nudgeAt;
+        return $this->tags;
     }
-
-    public function setNudgeAt(?\DateTimeImmutable $nudgeAt): static
+    public function setTags(array $tags): static
     {
-        $this->nudgeAt = $nudgeAt;
-
+        $this->tags = $this->strings($tags);
         return $this;
     }
-
+    public function getCover(): ?array
+    {
+        return $this->cover;
+    }
+    public function setCover(?array $cover): static
+    {
+        $this->cover = $cover;
+        return $this;
+    }
+    public function getExternalReferences(): array
+    {
+        return $this->externalReferences;
+    }
+    public function setExternalReferences(array $externalReferences): static
+    {
+        $this->externalReferences = $externalReferences;
+        return $this;
+    }
+    public function getPlaytimeEstimates(): ?array
+    {
+        return $this->playtimeEstimates;
+    }
+    public function setPlaytimeEstimates(?array $playtimeEstimates): static
+    {
+        $this->playtimeEstimates = $playtimeEstimates;
+        return $this;
+    }
+    public function getMetadataReviewedAt(): ?\DateTimeImmutable
+    {
+        return $this->metadataReviewedAt;
+    }
+    public function setMetadataReviewedAt(?\DateTimeImmutable $metadataReviewedAt): static
+    {
+        $this->metadataReviewedAt = $metadataReviewedAt;
+        return $this;
+    }
     public function getCreatedAt(): \DateTimeImmutable
     {
         return $this->createdAt;
     }
-
     public function setCreatedAt(\DateTimeImmutable $createdAt): static
     {
         $this->createdAt = $createdAt;
-
         return $this;
     }
-
     public function getUpdatedAt(): \DateTimeImmutable
     {
         return $this->updatedAt;
     }
-
     public function setUpdatedAt(\DateTimeImmutable $updatedAt): static
     {
         $this->updatedAt = $updatedAt;
-
         return $this;
     }
-
     public function getDeletedAt(): ?\DateTimeImmutable
     {
         return $this->deletedAt;
     }
-
     public function setDeletedAt(?\DateTimeImmutable $deletedAt): static
     {
         $this->deletedAt = $deletedAt;
-
+        return $this;
+    }
+    public function getRevision(): int
+    {
+        return $this->revision;
+    }
+    public function setRevision(int $revision): static
+    {
+        $this->revision = $revision;
         return $this;
     }
 
-    public function getDeveloperUpdatedAt(): ?\DateTimeImmutable
+    /** @return Collection<int, Journey> */
+    public function getJourneys(): Collection
     {
-        return $this->developerUpdatedAt;
+        return $this->journeys;
     }
 
-    public function setDeveloperUpdatedAt(?\DateTimeImmutable $developerUpdatedAt): static
+    private function strings(array $values): array
     {
-        $this->developerUpdatedAt = $developerUpdatedAt;
-
-        return $this;
-    }
-
-    public function getPublisherUpdatedAt(): ?\DateTimeImmutable
-    {
-        return $this->publisherUpdatedAt;
-    }
-
-    public function setPublisherUpdatedAt(?\DateTimeImmutable $publisherUpdatedAt): static
-    {
-        $this->publisherUpdatedAt = $publisherUpdatedAt;
-
-        return $this;
-    }
-
-    public function getReleaseYearUpdatedAt(): ?\DateTimeImmutable
-    {
-        return $this->releaseYearUpdatedAt;
-    }
-
-    public function setReleaseYearUpdatedAt(?\DateTimeImmutable $releaseYearUpdatedAt): static
-    {
-        $this->releaseYearUpdatedAt = $releaseYearUpdatedAt;
-
-        return $this;
-    }
-
-    public function getPriorityUpdatedAt(): ?\DateTimeImmutable
-    {
-        return $this->priorityUpdatedAt;
-    }
-
-    public function setPriorityUpdatedAt(?\DateTimeImmutable $priorityUpdatedAt): static
-    {
-        $this->priorityUpdatedAt = $priorityUpdatedAt;
-
-        return $this;
-    }
-
-    /**
-     * @return Collection<int, LogEntry>
-     */
-    public function getLogEntries(): Collection
-    {
-        return $this->logEntries;
-    }
-
-    public function addLogEntry(LogEntry $logEntry): static
-    {
-        if (!$this->logEntries->contains($logEntry)) {
-            $this->logEntries->add($logEntry);
-            $logEntry->setGame($this);
-        }
-
-        return $this;
-    }
-
-    public function removeLogEntry(LogEntry $logEntry): static
-    {
-        if ($this->logEntries->removeElement($logEntry) && $logEntry->getGame() === $this) {
-            $logEntry->setGame(null);
-        }
-
-        return $this;
-    }
-
-    private function normalizeStringList(array $values): array
-    {
-        $normalized = [];
-
-        foreach ($values as $value) {
-            if (!is_string($value)) {
-                continue;
-            }
-
-            $trimmed = trim($value);
-
-            if ('' !== $trimmed) {
-                $normalized[] = $trimmed;
-            }
-        }
-
-        return array_values(array_unique($normalized));
+        return array_values(array_unique(array_filter(
+            array_map(static fn (mixed $value): string => is_string($value) ? trim($value) : '', $values),
+        )));
     }
 }

@@ -23,7 +23,8 @@ class LogEntryRepository extends ServiceEntityRepository
     public function findAllForUser(User $user): array
     {
         return $this->createQueryBuilder('log_entry')
-            ->innerJoin('log_entry.game', 'game')
+            ->innerJoin('log_entry.journey', 'journey')
+            ->innerJoin('journey.game', 'game')
             ->andWhere('game.user = :user')
             ->setParameter('user', $user)
             ->orderBy('log_entry.updatedAt', 'DESC')
@@ -31,10 +32,28 @@ class LogEntryRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    /**
+     * @return list<LogEntry>
+     */
+    public function findChangedForUser(User $user, int $revision): array
+    {
+        return $this->createQueryBuilder('log_entry')
+            ->innerJoin('log_entry.journey', 'journey')
+            ->innerJoin('journey.game', 'game')
+            ->andWhere('game.user = :user')
+            ->andWhere('log_entry.revision > :revision')
+            ->setParameter('user', $user)
+            ->setParameter('revision', $revision)
+            ->orderBy('log_entry.revision', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
     public function findOneForUserById(User $user, string $id): ?LogEntry
     {
         return $this->createQueryBuilder('log_entry')
-            ->innerJoin('log_entry.game', 'game')
+            ->innerJoin('log_entry.journey', 'journey')
+            ->innerJoin('journey.game', 'game')
             ->andWhere('game.user = :user')
             ->andWhere('log_entry.id = :id')
             ->setParameter('user', $user)

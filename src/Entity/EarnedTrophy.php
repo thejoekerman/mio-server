@@ -38,6 +38,9 @@ class EarnedTrophy
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $deletedAt = null;
 
+    #[ORM\Column(options: ['unsigned' => true])]
+    private int $revision = 0;
+
     public function __construct()
     {
         $now = new \DateTimeImmutable();
@@ -150,6 +153,18 @@ class EarnedTrophy
     public function setDeletedAt(?\DateTimeImmutable $deletedAt): static
     {
         $this->deletedAt = $deletedAt;
+
+        return $this;
+    }
+
+    public function getRevision(): int
+    {
+        return $this->revision;
+    }
+
+    public function setRevision(int $revision): static
+    {
+        $this->revision = $revision;
 
         return $this;
     }

@@ -5,6 +5,7 @@ namespace App\Controller\Api;
 use App\AI\ReviewDraftingService;
 use App\Entity\User;
 use App\Repository\GameRepository;
+use App\Repository\JourneyRepository;
 use App\Service\AiFeatureAvailability;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -20,6 +21,7 @@ final class ReviewDraftController extends AbstractController
         Request $request,
         string $gameId,
         GameRepository $gameRepository,
+        JourneyRepository $journeyRepository,
         ReviewDraftingService $reviewDraftingService,
         AiFeatureAvailability $aiFeatureAvailability,
     ): JsonResponse {
@@ -45,10 +47,25 @@ final class ReviewDraftController extends AbstractController
             ], JsonResponse::HTTP_NOT_FOUND);
         }
 
+        $payload = json_decode($request->getContent(), true);
+        $journeyId = is_array($payload) && is_string($payload['journeyId'] ?? null)
+            ? trim($payload['journeyId'])
+            : null;
+        $journey = null !== $journeyId && '' !== $journeyId
+            ? $journeyRepository->findOneForUserById($user, $journeyId)
+            : $journeyRepository->findLatestVisibleForGame($game);
+
+        if (null === $journey || $journey->getGame()?->getId() !== $game->getId()) {
+            return $this->json([
+                'error' => 'Journey not found.',
+            ], JsonResponse::HTTP_NOT_FOUND);
+        }
+
         return $this->json([
             'gameId' => $game->getId(),
             'draft' => $reviewDraftingService->draftReview(
                 $game,
+                $journey,
                 null,
                 $this->resolveRequestLanguage($request),
             ),

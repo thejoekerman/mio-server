@@ -14,7 +14,7 @@ class LogEntry
 
     #[ORM\ManyToOne(inversedBy: 'logEntries')]
     #[ORM\JoinColumn(nullable: false)]
-    private ?Game $game = null;
+    private ?Journey $journey = null;
 
     #[ORM\Column(type: 'text')]
     private string $content = '';
@@ -27,6 +27,9 @@ class LogEntry
 
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $deletedAt = null;
+
+    #[ORM\Column(options: ['unsigned' => true])]
+    private int $revision = 0;
 
     public function __construct()
     {
@@ -47,14 +50,14 @@ class LogEntry
         return $this;
     }
 
-    public function getGame(): ?Game
+    public function getJourney(): ?Journey
     {
-        return $this->game;
+        return $this->journey;
     }
 
-    public function setGame(?Game $game): static
+    public function setJourney(?Journey $journey): static
     {
-        $this->game = $game;
+        $this->journey = $journey;
 
         return $this;
     }
@@ -103,6 +106,18 @@ class LogEntry
     public function setDeletedAt(?\DateTimeImmutable $deletedAt): static
     {
         $this->deletedAt = $deletedAt;
+
+        return $this;
+    }
+
+    public function getRevision(): int
+    {
+        return $this->revision;
+    }
+
+    public function setRevision(int $revision): static
+    {
+        $this->revision = $revision;
 
         return $this;
     }

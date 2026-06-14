@@ -5,7 +5,6 @@ namespace App\Repository;
 use App\Entity\Game;
 use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
-use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
@@ -26,7 +25,22 @@ class GameRepository extends ServiceEntityRepository
         return $this->createQueryBuilder('game')
             ->andWhere('game.user = :user')
             ->setParameter('user', $user)
-            ->orderBy('game.updatedAt', 'DESC')
+            ->orderBy('game.revision', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * @return list<Game>
+     */
+    public function findChangedForUser(User $user, int $revision): array
+    {
+        return $this->createQueryBuilder('game')
+            ->andWhere('game.user = :user')
+            ->andWhere('game.revision > :revision')
+            ->setParameter('user', $user)
+            ->setParameter('revision', $revision)
+            ->orderBy('game.revision', 'ASC')
             ->getQuery()
             ->getResult();
     }
@@ -45,48 +59,17 @@ class GameRepository extends ServiceEntityRepository
     /**
      * @return list<Game>
      */
-    public function findVisibleForUserWithLogs(User $user): array
+    public function findVisibleForUserWithJourneys(User $user): array
     {
         return $this->createQueryBuilder('game')
-            ->leftJoin('game.logEntries', 'logEntry')
-            ->addSelect('logEntry')
+            ->leftJoin('game.journeys', 'journey')
+            ->leftJoin('journey.logEntries', 'logEntry')
+            ->addSelect('journey', 'logEntry')
             ->andWhere('game.user = :user')
             ->andWhere('game.deletedAt IS NULL')
             ->setParameter('user', $user)
             ->orderBy('game.updatedAt', 'DESC')
             ->getQuery()
             ->getResult();
-    }
-
-    /**
-     * @return list<Game>
-     */
-    public function findMissingIgdbMetadata(): array
-    {
-        return $this->missingIgdbMetadataQueryBuilder()
-            ->getQuery()
-            ->getResult();
-    }
-
-    /**
-     * @return list<Game>
-     */
-    public function findMissingIgdbMetadataForUser(User $user, int $limit): array
-    {
-        return $this->missingIgdbMetadataQueryBuilder()
-            ->andWhere('game.user = :user')
-            ->setParameter('user', $user)
-            ->setMaxResults($limit)
-            ->getQuery()
-            ->getResult();
-    }
-
-    private function missingIgdbMetadataQueryBuilder(): QueryBuilder
-    {
-        return $this->createQueryBuilder('game')
-            ->andWhere('game.deletedAt IS NULL')
-            ->andWhere('game.igdbId IS NOT NULL')
-            ->andWhere('game.coverUrl IS NULL OR game.igdbUrl IS NULL OR game.igdbTtbCount IS NULL OR game.igdbDevelopers IS NULL OR game.igdbPublishers IS NULL OR game.igdbThemes IS NULL OR game.igdbGameModes IS NULL OR game.releaseYear IS NULL') // phpcs:ignore Generic.Files.LineLength
-            ->orderBy('game.updatedAt', 'DESC');
     }
 }

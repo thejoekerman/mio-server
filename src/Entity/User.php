@@ -32,6 +32,9 @@ class User implements UserInterface
     #[ORM\Column]
     private \DateTimeImmutable $updatedAt;
 
+    #[ORM\Column(options: ['unsigned' => true])]
+    private int $syncRevision = 0;
+
     /**
      * @var Collection<int, SyncToken>
      */
@@ -115,6 +118,16 @@ class User implements UserInterface
     public function getAiUsage(): bool
     {
         return $this->aiUsage;
+    }
+
+    public function getSyncRevision(): int
+    {
+        return $this->syncRevision;
+    }
+
+    public function nextSyncRevision(): int
+    {
+        return ++$this->syncRevision;
     }
 
     public function setAiUsage(bool $aiUsage): static

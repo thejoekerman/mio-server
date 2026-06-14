@@ -3,6 +3,7 @@
 namespace App\AI;
 
 use App\Entity\Game;
+use App\Entity\Journey;
 use App\Entity\LogEntry;
 use Symfony\AI\Agent\AgentInterface;
 use Symfony\AI\Platform\Message\Message;
@@ -22,15 +23,19 @@ final readonly class ReviewDraftingService
     ) {
     }
 
-    public function draftReview(Game $game, ?string $provider = null, string $language = 'en'): string
-    {
+    public function draftReview(
+        Game $game,
+        Journey $journey,
+        ?string $provider = null,
+        string $language = 'en',
+    ): string {
         $agent = match ($provider ?? $this->resolveProvider()) {
             'lmstudio' => $this->reviewDrafter,
             'gemini' => $this->reviewDrafterGemini,
             default => throw new \InvalidArgumentException('Unsupported review draft provider.'),
         };
 
-        $result = $agent->call(new MessageBag(Message::ofUser($this->buildPromptInput($game, $language))));
+        $result = $agent->call(new MessageBag(Message::ofUser($this->buildPromptInput($game, $journey, $language))));
 
         if (!$result instanceof TextResult) {
             throw new \RuntimeException('Review drafter did not return text output.');
@@ -50,7 +55,7 @@ final readonly class ReviewDraftingService
         return 'dev' === $this->appEnv ? 'lmstudio' : 'gemini';
     }
 
-    private function buildPromptInput(Game $game, string $language): string
+    private function buildPromptInput(Game $game, Journey $journey, string $language): string
     {
         $lines = [
             'Draft a review for this game from the following MioLog context.',
@@ -58,20 +63,20 @@ final readonly class ReviewDraftingService
             '',
             'Game metadata:',
             sprintf('- Title: %s', $game->getTitle()),
-            sprintf('- Status: %s', $game->getStatus()),
-            sprintf('- Platform: %s', $this->valueOrFallback($game->getPlatform(), 'unspecified')),
+            sprintf('- Status: %s', $journey->getStatus()),
+            sprintf('- Platform: %s', $this->valueOrFallback($journey->getPlatform(), 'unspecified')),
             sprintf('- Tags: %s', $game->getTags() !== [] ? implode(', ', $game->getTags()) : 'none'),
-            sprintf('- Rating: %s', null !== $game->getRating() ? (string) $game->getRating() : 'none'),
-            sprintf('- Play time hours: %s', null !== $game->getPlayTimeHours() ? $game->getPlayTimeHours() : 'unknown'), // phpcs:ignore Generic.Files.LineLength
-            sprintf('- Finished on: %s', null !== $game->getFinishedAt() ? $game->getFinishedAt()->format('Y-m-d') : 'not finished / unknown'), // phpcs:ignore Generic.Files.LineLength
+            sprintf('- Rating: %s', null !== $journey->getRating() ? (string) $journey->getRating() : 'none'),
+            sprintf('- Play time hours: %s', null !== $journey->getPlayTimeHours() ? $journey->getPlayTimeHours() : 'unknown'), // phpcs:ignore Generic.Files.LineLength
+            sprintf('- Finished on: %s', null !== $journey->getFinishedAt() ? $journey->getFinishedAt()->format('Y-m-d') : 'not finished / unknown'), // phpcs:ignore Generic.Files.LineLength
         ];
 
-        $existingReview = trim($game->getReview());
+        $existingReview = trim($journey->getReview());
         if ('' !== $existingReview) {
             $lines[] = sprintf('- Existing review notes: %s', $existingReview);
         }
 
-        $logs = $this->formatLogs($game);
+        $logs = $this->formatLogs($journey);
         $lines[] = '';
         $lines[] = 'Play logs:';
         $lines[] = [] !== $logs ? implode("\n", $logs) : '- No play logs were provided.';
@@ -82,10 +87,10 @@ final readonly class ReviewDraftingService
     /**
      * @return list<string>
      */
-    private function formatLogs(Game $game): array
+    private function formatLogs(Journey $journey): array
     {
         $entries = array_filter(
-            $game->getLogEntries()->toArray(),
+            $journey->getLogEntries()->toArray(),
             static fn (LogEntry $entry): bool => null === $entry->getDeletedAt(),
         );
 

@@ -9,8 +9,6 @@
 parameters:
     app.ai.gemini_api_key: '%env(default::GEMINI_API_KEY)%'
     app.ai.provider: '%env(default::AI_PROVIDER)%'
-    app.igdb.client_id: '%env(default::IGDB_CLIENT_ID)%'
-    app.igdb.client_secret: '%env(default::IGDB_CLIENT_SECRET)%'
 
 
 services:
@@ -54,8 +52,3 @@ services:
         arguments:
             $appEnv: '%kernel.environment%'
             $configuredProvider: '%app.ai.provider%'
-
-    App\IGDB\IgdbClient:
-        arguments:
-            $clientId: '%app.igdb.client_id%'
-            $clientSecret: '%app.igdb.client_secret%'

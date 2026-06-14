@@ -118,11 +118,5 @@ list-users: ## List users
 ai-usage:
 	docker compose exec backend php bin/console app:user:ai-usage $(Arguments)
 
-.PHONY: igdb-enrich
-## Enrich gamee metadata with IGDB data
-## Usage: make igdb-enrich -- --limit=50
-igdb-enrich:
-	docker compose exec backend php bin/console app:igdb:enrich $(Arguments)
-
 %::
 	@true

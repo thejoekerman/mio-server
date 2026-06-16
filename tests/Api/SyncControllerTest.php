@@ -4,11 +4,28 @@ namespace App\Tests\Api;
 
 use App\Entity\Game;
 use App\Entity\Journey;
+use App\Entity\LogEntry;
+use App\Entity\SyncDeletion;
 use PHPUnit\Framework\Attributes\TestDox;
 
 #[TestDox('SyncController Test')]
 final class SyncControllerTest extends ApiTestCase
 {
+    #[TestDox('The sync endpoint rejects clients without the v3 deletion protocol')]
+    public function testRejectsOlderSyncProtocols(): void
+    {
+        $auth = $this->createUserWithSyncToken();
+
+        $this->postJson('/api/sync', [
+            'cursor' => null,
+            'full' => true,
+            'changes' => [],
+        ], $auth['plainToken']);
+
+        self::assertSame(400, $this->client->getResponse()->getStatusCode());
+        self::assertStringContainsString('protocol v3 is required', $this->client->getResponse()->getContent() ?: '');
+    }
+
     #[TestDox('The sync endpoint creates and returns the canonical 3.0 graph')]
     public function testCreatesCanonicalGraph(): void
     {
@@ -85,6 +102,58 @@ final class SyncControllerTest extends ApiTestCase
         self::assertNull($this->entityManager->getRepository(Journey::class)->find('journey-1'));
     }
 
+    #[TestDox('The sync endpoint hard-deletes records and returns compact deletion markers')]
+    public function testHardDeletesRecordsAndReturnsDeletionMarkers(): void
+    {
+        $auth = $this->createUserWithSyncToken();
+        $this->postJson('/api/sync', $this->request(
+            games: [$this->game()],
+            journeys: [$this->journey()],
+            logs: [$this->log()],
+        ), $auth['plainToken']);
+        $cursor = $this->responsePayload()['cursor'];
+        $deletedAt = '2026-06-15T10:00:00.345Z';
+
+        $this->postJson('/api/sync', $this->request(
+            games: [$this->game(['updatedAt' => $deletedAt, 'deletedAt' => $deletedAt])],
+            journeys: [$this->journey(['updatedAt' => $deletedAt, 'deletedAt' => $deletedAt])],
+            logs: [$this->log(['updatedAt' => $deletedAt, 'deletedAt' => $deletedAt])],
+            cursor: $cursor,
+            full: false,
+        ), $auth['plainToken']);
+        $payload = $this->responsePayload();
+
+        self::assertNull($this->entityManager->getRepository(Game::class)->find('game-1'));
+        self::assertNull($this->entityManager->getRepository(Journey::class)->find('journey-1'));
+        self::assertNull($this->entityManager->getRepository(LogEntry::class)->find('log-1'));
+        self::assertCount(3, $this->entityManager->getRepository(SyncDeletion::class)->findAll());
+        self::assertSame([['id' => 'game-1', 'updatedAt' => $deletedAt]], $payload['deletions']['games']);
+        self::assertSame([], $payload['changes']['games']);
+        self::assertSame(['games' => 0, 'journeys' => 0, 'logs' => 0], $payload['totals']);
+    }
+
+    #[TestDox('The sync endpoint requires authoritative recovery below the retained cursor floor')]
+    public function testRequiresAuthoritativeRecoveryBelowCursorFloor(): void
+    {
+        $auth = $this->createUserWithSyncToken();
+        $this->postJson('/api/sync', $this->request(games: [$this->game(['title' => 'Server copy'])]), $auth['plainToken']);
+        $cursor = $this->responsePayload()['cursor'];
+        $auth['user']->advanceMinimumSupportedCursor($cursor);
+        $this->entityManager->flush();
+
+        $this->postJson('/api/sync', $this->request(
+            games: [$this->game(['title' => 'Stale browser', 'updatedAt' => '2026-06-15T12:00:00Z'])],
+            cursor: 0,
+            full: false,
+        ), $auth['plainToken']);
+        $payload = $this->responsePayload();
+
+        self::assertTrue($payload['recoveryRequired']);
+        self::assertSame([], $payload['acknowledged']['games']);
+        self::assertSame('Server copy', $payload['changes']['games'][0]['title']);
+        self::assertSame([], $payload['deletions']['games']);
+    }
+
     /** @return array<string, mixed> */
     private function request(
         array $games = [],
@@ -95,6 +164,7 @@ final class SyncControllerTest extends ApiTestCase
         bool $full = true,
     ): array {
         return [
+            'protocolVersion' => 3,
             'cursor' => $cursor,
             'full' => $full,
             'changes' => [

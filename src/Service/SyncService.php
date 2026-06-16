@@ -6,11 +6,13 @@ use App\Entity\EarnedTrophy;
 use App\Entity\Game;
 use App\Entity\Journey;
 use App\Entity\LogEntry;
+use App\Entity\SyncDeletion;
 use App\Entity\User;
 use App\Repository\EarnedTrophyRepository;
 use App\Repository\GameRepository;
 use App\Repository\JourneyRepository;
 use App\Repository\LogEntryRepository;
+use App\Repository\SyncDeletionRepository;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -22,6 +24,7 @@ class SyncService
         private readonly JourneyRepository $journeyRepository,
         private readonly LogEntryRepository $logEntryRepository,
         private readonly EarnedTrophyRepository $earnedTrophyRepository,
+        private readonly SyncDeletionRepository $syncDeletionRepository,
     ) {
     }
 
@@ -32,6 +35,10 @@ class SyncService
      */
     public function sync(User $user, array $payload): array
     {
+        if (3 !== ($payload['protocolVersion'] ?? null)) {
+            throw new \InvalidArgumentException('MioLog sync protocol v3 is required.');
+        }
+
         $cursor = $this->cursor($payload['cursor'] ?? null);
         $full = true === ($payload['full'] ?? false);
         $changes = is_array($payload['changes'] ?? null) ? $payload['changes'] : [];
@@ -46,74 +53,191 @@ class SyncService
                 'earnedTrophies' => [],
             ];
 
-            foreach ($this->records($changes, 'games') as $data) {
-                $acknowledged['games'][] = $this->mergeGame($user, $data)->getId();
+            if (!$full && $cursor < $user->getMinimumSupportedCursor()) {
+                return $this->response($user, $acknowledged, true, true, $cursor);
+            }
+
+            foreach ($this->liveRecords($changes, 'games') as $data) {
+                $id = $this->requireString($data, 'id');
+                $acknowledged['games'][] = $id;
+                if ($this->acceptLiveRecord($user, 'game', $id, $this->requireDateTime($data, 'updatedAt'))) {
+                    $this->mergeGame($user, $data);
+                }
             }
             $this->entityManager->flush();
 
-            foreach ($this->records($changes, 'journeys') as $data) {
-                $acknowledged['journeys'][] = $this->mergeJourney($user, $data)->getId();
+            foreach ($this->liveRecords($changes, 'journeys') as $data) {
+                $id = $this->requireString($data, 'id');
+                $acknowledged['journeys'][] = $id;
+                if ($this->acceptLiveRecord($user, 'journey', $id, $this->requireDateTime($data, 'updatedAt'))) {
+                    $this->mergeJourney($user, $data);
+                }
             }
             $this->entityManager->flush();
 
-            foreach ($this->records($changes, 'logs') as $data) {
-                $acknowledged['logs'][] = $this->mergeLogEntry($user, $data)->getId();
+            foreach ($this->liveRecords($changes, 'logs') as $data) {
+                $id = $this->requireString($data, 'id');
+                $acknowledged['logs'][] = $id;
+                if ($this->acceptLiveRecord($user, 'log', $id, $this->requireDateTime($data, 'updatedAt'))) {
+                    $this->mergeLogEntry($user, $data);
+                }
             }
 
-            foreach ($this->records($changes, 'earnedTrophies') as $data) {
-                $trophy = $this->mergeEarnedTrophy($user, $data);
-                $acknowledged['earnedTrophies'][] = $this->clientTrophyId($trophy);
+            foreach ($this->liveRecords($changes, 'earnedTrophies') as $data) {
+                $id = $this->requireString($data, 'id');
+                $acknowledged['earnedTrophies'][] = $id;
+                if ($this->acceptLiveRecord($user, 'earnedTrophy', $id, $this->requireDateTime($data, 'updatedAt'))) {
+                    $this->mergeEarnedTrophy($user, $data);
+                }
             }
             $this->entityManager->flush();
 
-            $responseChanges = [
-                'games' => $this->responseEntities(
-                    $full
-                        ? $this->gameRepository->findAllForUser($user)
-                        : $this->gameRepository->findChangedForUser($user, $cursor),
-                    $acknowledged['games'],
-                    fn (string $id): ?Game => $this->gameRepository->findOneForUserById($user, $id),
-                    fn (Game $game): array => $this->serializeGame($game),
-                ),
-                'journeys' => $this->responseEntities(
-                    $full
-                        ? $this->journeyRepository->findAllForUser($user)
-                        : $this->journeyRepository->findChangedForUser($user, $cursor),
-                    $acknowledged['journeys'],
-                    fn (string $id): ?Journey => $this->journeyRepository->findOneForUserById($user, $id),
-                    fn (Journey $journey): array => $this->serializeJourney($journey),
-                ),
-                'logs' => $this->responseEntities(
-                    $full
-                        ? $this->logEntryRepository->findAllForUser($user)
-                        : $this->logEntryRepository->findChangedForUser($user, $cursor),
-                    $acknowledged['logs'],
-                    fn (string $id): ?LogEntry => $this->logEntryRepository->findOneForUserById($user, $id),
-                    fn (LogEntry $log): array => $this->serializeLogEntry($log),
-                ),
-                'earnedTrophies' => $this->responseEntities(
-                    $full
-                        ? $this->earnedTrophyRepository->findAllForUser($user)
-                        : $this->earnedTrophyRepository->findChangedForUser($user, $cursor),
-                    $acknowledged['earnedTrophies'],
-                    fn (string $id): ?EarnedTrophy => $this->earnedTrophyRepository->findOneForUserById($user, $id),
-                    fn (EarnedTrophy $trophy): array => $this->serializeEarnedTrophy($trophy),
-                    fn (EarnedTrophy $trophy): string => $this->clientTrophyId($trophy),
-                ),
+            $deletionOrder = [
+                'logs' => 'log',
+                'journeys' => 'journey',
+                'games' => 'game',
+                'earnedTrophies' => 'earnedTrophy',
             ];
+            foreach ($deletionOrder as $key => $entityType) {
+                foreach ($this->deletedRecords($changes, $key) as $data) {
+                    $id = $this->requireString($data, 'id');
+                    $acknowledged[$key][] = $id;
+                    $this->applyDeletion($user, $entityType, $id, $this->requireDateTime($data, 'updatedAt'));
+                }
+                $this->entityManager->flush();
+            }
 
-            return [
-                'cursor' => $user->getSyncRevision(),
-                'acknowledged' => $acknowledged,
-                'changes' => $responseChanges,
-                'totals' => [
-                    'games' => count($this->gameRepository->findAllForUser($user)),
-                    'journeys' => count($this->journeyRepository->findAllForUser($user)),
-                    'logs' => count($this->logEntryRepository->findAllForUser($user)),
-                ],
-                'syncedAt' => $this->formatDateTime(new \DateTimeImmutable()),
-            ];
+            return $this->response($user, $acknowledged, $full, false, $cursor);
         });
+    }
+
+    /** @param array<string, list<string>> $acknowledged */
+    private function response(User $user, array $acknowledged, bool $full, bool $recoveryRequired, int $cursor): array
+    {
+        $responseChanges = [
+            'games' => $this->responseEntities(
+                $full
+                    ? $this->gameRepository->findAllForUser($user)
+                    : $this->gameRepository->findChangedForUser($user, $cursor),
+                $recoveryRequired ? [] : $acknowledged['games'],
+                fn (string $id): ?Game => $this->gameRepository->findOneForUserById($user, $id),
+                fn (Game $game): array => $this->serializeGame($game),
+            ),
+            'journeys' => $this->responseEntities(
+                $full
+                    ? $this->journeyRepository->findAllForUser($user)
+                    : $this->journeyRepository->findChangedForUser($user, $cursor),
+                $recoveryRequired ? [] : $acknowledged['journeys'],
+                fn (string $id): ?Journey => $this->journeyRepository->findOneForUserById($user, $id),
+                fn (Journey $journey): array => $this->serializeJourney($journey),
+            ),
+            'logs' => $this->responseEntities(
+                $full
+                    ? $this->logEntryRepository->findAllForUser($user)
+                    : $this->logEntryRepository->findChangedForUser($user, $cursor),
+                $recoveryRequired ? [] : $acknowledged['logs'],
+                fn (string $id): ?LogEntry => $this->logEntryRepository->findOneForUserById($user, $id),
+                fn (LogEntry $log): array => $this->serializeLogEntry($log),
+            ),
+            'earnedTrophies' => $this->responseEntities(
+                $full
+                    ? $this->earnedTrophyRepository->findAllForUser($user)
+                    : $this->earnedTrophyRepository->findChangedForUser($user, $cursor),
+                $recoveryRequired ? [] : $acknowledged['earnedTrophies'],
+                fn (string $id): ?EarnedTrophy => $this->earnedTrophyRepository->findOneForUserById($user, $id),
+                fn (EarnedTrophy $trophy): array => $this->serializeEarnedTrophy($trophy),
+                fn (EarnedTrophy $trophy): string => $this->clientTrophyId($trophy),
+            ),
+        ];
+
+        $deletions = ['games' => [], 'journeys' => [], 'logs' => [], 'earnedTrophies' => []];
+        if (!$recoveryRequired) {
+            $markers = $full
+                ? $this->syncDeletionRepository->findAllForUser($user)
+                : $this->syncDeletionRepository->findChangedForUser($user, $cursor);
+            foreach ($markers as $marker) {
+                $deletions[$this->deletionResponseKey($marker->getEntityType())][] = [
+                    'id' => $marker->getEntityId(),
+                    'updatedAt' => $this->formatDateTime($marker->getUpdatedAt()),
+                ];
+            }
+        }
+
+        return [
+            'cursor' => $user->getSyncRevision(),
+            'recoveryRequired' => $recoveryRequired,
+            'acknowledged' => $recoveryRequired
+                ? ['games' => [], 'journeys' => [], 'logs' => [], 'earnedTrophies' => []]
+                : $acknowledged,
+            'changes' => $responseChanges,
+            'deletions' => $deletions,
+            'totals' => [
+                'games' => count($this->gameRepository->findAllForUser($user)),
+                'journeys' => count($this->journeyRepository->findAllForUser($user)),
+                'logs' => count($this->logEntryRepository->findAllForUser($user)),
+            ],
+            'syncedAt' => $this->formatDateTime(new \DateTimeImmutable()),
+        ];
+    }
+
+    private function acceptLiveRecord(User $user, string $entityType, string $id, \DateTimeImmutable $updatedAt): bool
+    {
+        $deletion = $this->syncDeletionRepository->findOneForUser($user, $entityType, $id);
+        if (!$deletion instanceof SyncDeletion) {
+            return true;
+        }
+        if ($updatedAt <= $deletion->getUpdatedAt()) {
+            return false;
+        }
+
+        $this->entityManager->remove($deletion);
+
+        return true;
+    }
+
+    private function applyDeletion(User $user, string $entityType, string $id, \DateTimeImmutable $updatedAt): void
+    {
+        $entity = match ($entityType) {
+            'game' => $this->gameRepository->findOneForUserById($user, $id),
+            'journey' => $this->journeyRepository->findOneForUserById($user, $id),
+            'log' => $this->logEntryRepository->findOneForUserById($user, $id),
+            'earnedTrophy' => $this->earnedTrophyRepository->findOneForUserById($user, $id),
+            default => throw new \LogicException(sprintf('Unsupported sync entity type "%s".', $entityType)),
+        };
+        $deletion = $this->syncDeletionRepository->findOneForUser($user, $entityType, $id);
+
+        if (null !== $entity && $updatedAt < $entity->getUpdatedAt()) {
+            return;
+        }
+        if ($deletion instanceof SyncDeletion && $updatedAt < $deletion->getUpdatedAt()) {
+            return;
+        }
+
+        if (null !== $entity) {
+            $this->entityManager->remove($entity);
+        }
+        if (!$deletion instanceof SyncDeletion) {
+            $deletion = (new SyncDeletion())
+                ->setUser($user)
+                ->setEntityType($entityType)
+                ->setEntityId($id);
+            $this->entityManager->persist($deletion);
+        }
+        $deletion
+            ->setUpdatedAt($updatedAt)
+            ->setDeletedAt(new \DateTimeImmutable())
+            ->setRevision($user->nextSyncRevision());
+    }
+
+    private function deletionResponseKey(string $entityType): string
+    {
+        return match ($entityType) {
+            'game' => 'games',
+            'journey' => 'journeys',
+            'log' => 'logs',
+            'earnedTrophy' => 'earnedTrophies',
+            default => throw new \LogicException(sprintf('Unsupported sync entity type "%s".', $entityType)),
+        };
     }
 
     /** @param array<string, mixed> $data */
@@ -359,6 +483,24 @@ class SyncService
         return is_array($records) ? array_values(array_filter($records, 'is_array')) : [];
     }
 
+    /** @return list<array<string, mixed>> */
+    private function liveRecords(array $changes, string $key): array
+    {
+        return array_values(array_filter(
+            $this->records($changes, $key),
+            fn (array $record): bool => null === $this->dateTimeOrNull($record['deletedAt'] ?? null),
+        ));
+    }
+
+    /** @return list<array<string, mixed>> */
+    private function deletedRecords(array $changes, string $key): array
+    {
+        return array_values(array_filter(
+            $this->records($changes, $key),
+            fn (array $record): bool => null !== $this->dateTimeOrNull($record['deletedAt'] ?? null),
+        ));
+    }
+
     private function cursor(mixed $value): int
     {
         return is_int($value) && $value >= 0 ? $value : 0;
@@ -463,7 +605,7 @@ class SyncService
 
     private function formatDateTime(\DateTimeImmutable $value): string
     {
-        return $value->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d\TH:i:s\Z');
+        return $value->setTimezone(new \DateTimeZone('UTC'))->format('Y-m-d\TH:i:s.v\Z');
     }
 
     private function formatNullableDateTime(?\DateTimeImmutable $value): ?string

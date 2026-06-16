@@ -14,6 +14,11 @@ final class Version20260615120000 extends AbstractMigration
         return 'Store bounded sync deletion markers and a per-user recovery cursor floor.';
     }
 
+    public function isTransactional(): bool
+    {
+        return false;
+    }
+
     public function up(Schema $schema): void
     {
         $this->addSql('ALTER TABLE `user` ADD minimum_supported_cursor INT UNSIGNED DEFAULT 0 NOT NULL');

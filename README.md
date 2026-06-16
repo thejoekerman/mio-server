@@ -61,7 +61,13 @@ AI endpoints accept an optional JSON body such as `{"language":"de"}` or
 make shell
 make console command="debug:router"
 make sync-token command="you@example.com iPhone"
+make sync-purge-deletions -- --days=180
 ```
+
+Sync deletion markers are intentionally retained only for a bounded period. Run
+`app:sync:purge-deletions --days=180` from a daily or weekly cron job. Browsers
+that have not synced since before the retained cursor floor recover from the
+server-authoritative library on their next sync.
 
 ## Docker Images
 
@@ -255,6 +261,12 @@ EOF
 docker compose -f compose.yml pull
 docker compose -f compose.yml up -d
 docker compose -f compose.yml exec -T backend php bin/console doctrine:migrations:migrate --no-interaction
+```
+
+Schedule deletion-marker cleanup on the host, for example:
+
+```cron
+15 3 * * * cd /opt/miolog && docker compose -f compose.yml exec -T backend php bin/console app:sync:purge-deletions --days=180
 ```
 
 Create a sync token for the PWA:

@@ -24,7 +24,7 @@ class MeController extends AbstractController
         $reviewDraft = $user->getAiUsage() && $aiFeatureAvailability->reviewDraftAvailable();
 
         return $this->json([
-            'version' => 2,
+            'version' => 3,
             'user' => [
                 'id' => $user->getId(),
                 'email' => $user->getEmail(),

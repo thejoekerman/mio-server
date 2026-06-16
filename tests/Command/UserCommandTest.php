@@ -2,6 +2,7 @@
 
 namespace App\Tests\Command;
 
+use App\Entity\SyncDeletion;
 use App\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
@@ -101,6 +102,30 @@ class UserCommandTest extends KernelTestCase
 
         self::assertSame(Command::INVALID, $badFlagTester->getStatusCode());
         self::assertStringContainsString('AI usage must be one of', $badFlagTester->getDisplay());
+    }
+
+    public function testPurgeSyncDeletionsAdvancesTheUserCursorFloor(): void
+    {
+        $user = $this->createUser('sync@example.com', 'Sync User', false);
+        $deletion = (new SyncDeletion())
+            ->setUser($user)
+            ->setEntityType('game')
+            ->setEntityId('old-game')
+            ->setUpdatedAt(new \DateTimeImmutable('-200 days'))
+            ->setDeletedAt(new \DateTimeImmutable('-200 days'))
+            ->setRevision(42);
+        $this->entityManager->persist($deletion);
+        $this->entityManager->flush();
+
+        $tester = $this->runCommand('app:sync:purge-deletions', ['--days' => '180']);
+        $this->entityManager->clear();
+        $reloadedUser = $this->entityManager->find(User::class, $user->getId());
+
+        self::assertSame(Command::SUCCESS, $tester->getStatusCode());
+        self::assertStringContainsString('Purged 1 sync deletion marker', $tester->getDisplay());
+        self::assertSame([], $this->entityManager->getRepository(SyncDeletion::class)->findAll());
+        self::assertInstanceOf(User::class, $reloadedUser);
+        self::assertSame(42, $reloadedUser->getMinimumSupportedCursor());
     }
 
     /**

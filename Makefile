@@ -118,5 +118,11 @@ list-users: ## List users
 ai-usage:
 	docker compose exec backend php bin/console app:user:ai-usage $(Arguments)
 
+.PHONY: sync-purge-deletions
+## Purge expired sync deletion markers
+## Usage: make sync-purge-deletions -- --days=180
+sync-purge-deletions:
+	docker compose exec backend php bin/console app:sync:purge-deletions $(Arguments)
+
 %::
 	@true

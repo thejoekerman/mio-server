@@ -34,6 +34,3 @@ Extended context in `memory/`:
 - `02-sync.md` — Sync API v2 implementation and contract
 - `03-verification.md` — Dev commands and verification
 
-## Sister Repos
-- `mio-pwa/` — The official reference client
-- `games-backlog/` — Marketing site and deployment config

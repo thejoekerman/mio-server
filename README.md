@@ -80,13 +80,37 @@ ghcr.io/thejoekerman/mio-server-web:<tag>
 
 Use `latest` for the newest published build or pin a release tag such as `v1.0.0`.
 
+## Upgrading An Existing MySQL 8.0 Deployment
+
+The Compose examples now use MySQL 8.4 LTS. Upgrading an existing database is a
+separate deployment step from updating the MioServer application images.
+
+Before switching the database image:
+
+1. Follow the [MySQL 8.4 upgrade prerequisites](https://dev.mysql.com/doc/refman/8.4/en/upgrade-prerequisites.html)
+   and run MySQL Shell's upgrade checker against the existing server.
+2. Confirm application and administrative accounts use `caching_sha2_password`.
+   `mysql_native_password` is disabled by default in MySQL 8.4.
+3. Stop application writes, export a complete SQL backup, and stop MySQL cleanly.
+   Retain a snapshot/copy of the stopped MySQL 8.0 data volume and the old image
+   version for rollback. Keep backups private and outside the repository.
+4. Change the database image to `mysql:8.4` and update the Doctrine connection URL
+   to `serverVersion=8.4`. Start MySQL and wait for its upgrade to finish and its
+   health check to pass before starting MioServer.
+5. Check the database logs, validate the Doctrine schema and migration status,
+   then verify authentication and sync before reopening application writes.
+
+Never point a MySQL 8.0 container at a data volume already upgraded by MySQL 8.4.
+Rollback requires restoring the saved 8.0 volume or restoring the SQL backup into
+a compatible fresh server. Do not remove the backup until the upgrade is verified.
+
 ## Production Deployment
 
 The published production images are intended to run as a small stack:
 
 - `mio-server-backend`: PHP-FPM Symfony app
 - `mio-server-web`: nginx serving `public/` and forwarding PHP requests to `backend:9000`
-- `mysql:8.0` or another MySQL-compatible database
+- `mysql:8.4` (MySQL 8.4 LTS) or another MySQL-compatible database
 - an outer TLS reverse proxy such as Caddy, nginx, Traefik, or a platform load balancer
 
 The example below creates a complete Docker Compose deployment in `/opt/miolog`
@@ -188,7 +212,7 @@ services:
       APP_SECRET: ${APP_SECRET:?Set APP_SECRET in .env}
       APP_SHARE_DIR: ${APP_SHARE_DIR:-var/share}
       DEFAULT_URI: ${DEFAULT_URI:?Set DEFAULT_URI in .env}
-      DATABASE_URL: mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db:3306/${MYSQL_DATABASE}?serverVersion=8.0.32&charset=utf8mb4
+      DATABASE_URL: mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db:3306/${MYSQL_DATABASE}?serverVersion=8.4&charset=utf8mb4
       MESSENGER_TRANSPORT_DSN: ${MESSENGER_TRANSPORT_DSN:-doctrine://default?auto_setup=0}
       CORS_ALLOW_ORIGIN: ${CORS_ALLOW_ORIGIN:?Set CORS_ALLOW_ORIGIN in .env}
       SYMFONY_TRUSTED_PROXIES: ${SYMFONY_TRUSTED_PROXIES:-private_ranges}
@@ -204,7 +228,7 @@ services:
       - egress
 
   db:
-    image: mysql:8.0
+    image: mysql:8.4
     restart: unless-stopped
     ports:
       - "127.0.0.1:3306:3306"

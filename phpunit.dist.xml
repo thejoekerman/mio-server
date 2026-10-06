@@ -14,9 +14,10 @@
         <ini name="display_errors" value="1" />
         <ini name="error_reporting" value="-1" />
         <server name="APP_ENV" value="test" force="true" />
+        <env name="APP_ENV" value="test" force="true" />
         <server name="APP_DEBUG" value="1" force="true" />
-        <server name="DATABASE_URL" value="mysql://root:db@db:3306/db_test?serverVersion=8.0.32&amp;charset=utf8mb4" force="true" />
-        <env name="DATABASE_URL" value="mysql://root:db@db:3306/db_test?serverVersion=8.0.32&amp;charset=utf8mb4" force="true" />
+        <server name="DATABASE_URL" value="mysql://root:db@db:3306/db_test?serverVersion=8.4&amp;charset=utf8mb4" force="true" />
+        <env name="DATABASE_URL" value="mysql://root:db@db:3306/db_test?serverVersion=8.4&amp;charset=utf8mb4" force="true" />
         <server name="SHELL_VERBOSITY" value="-1" />
     </php>
 

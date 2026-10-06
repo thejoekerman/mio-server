@@ -8,9 +8,9 @@ Optional self-hostable sync backend for MioLog. The App works fine without it.
 - First sync: full reconciliation. Subsequent: incremental with cursors
 
 ## Tech Stack
-- PHP 8.2 + Slim 4
+- PHP 8.4 + Symfony 8
 - Doctrine ORM
-- SQLite or MySQL
+- MySQL 8.4 LTS
 - Docker-first
 
 ## Development
@@ -33,4 +33,3 @@ Extended context in `memory/`:
 - `01-ecosystem.md` — Project shape and release state
 - `02-sync.md` — Sync API v2 implementation and contract
 - `03-verification.md` — Dev commands and verification
-

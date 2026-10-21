@@ -14,7 +14,7 @@ RUN composer install \
     --no-scripts \
     --optimize-autoloader
 
-FROM php:8.4.27-fpm AS backend-prod
+FROM php:8.5.0-fpm AS backend-prod
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
